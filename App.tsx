@@ -398,7 +398,7 @@ const App = () => {
             }
         ]);
     }
-  }, [store.currentUser, store.aiChatSession, store.setAiChatSession, store.setAiChatMessages]);
+  }, [store.currentUser]);
 
   if (store.isLoading) {
     return <div>Carregando...</div>;
