@@ -48,17 +48,50 @@ export const supabaseAuthService = {
   ): Promise<{ user: User; session: AuthSession } | null> {
     try {
       // Step 1: Create Auth user with metadata
-      const { data: authData, error: authError } = await getSupabaseAuth().auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role,
-            client_type: clientType,
+      let authData;
+      let authError;
+
+      try {
+        const response = await getSupabaseAuth().auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name,
+              role,
+              client_type: clientType,
+            },
           },
-        },
-      });
+        });
+        authData = response.data;
+        authError = response.error;
+      } catch (sdkError: any) {
+        // Handle SDK-level errors (like "body stream already read")
+        // This can happen with network proxies or malformed responses
+        console.error('Supabase SDK error during sign up:', sdkError);
+
+        // Try to provide a helpful error message
+        if (sdkError.message?.includes('body stream already read')) {
+          console.warn('Supabase API connection issue - retrying...');
+          // Retry once
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const retryResponse = await getSupabaseAuth().auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                name,
+                role,
+                client_type: clientType,
+              },
+            },
+          });
+          authData = retryResponse.data;
+          authError = retryResponse.error;
+        } else {
+          throw sdkError;
+        }
+      }
 
       if (authError) {
         console.error('Sign up error:', authError);
