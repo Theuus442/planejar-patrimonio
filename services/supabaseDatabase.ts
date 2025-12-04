@@ -1,10 +1,10 @@
 import { getSupabaseClient } from './supabaseService';
-import { 
-  User, 
-  Project, 
-  Task, 
-  Document, 
-  ChatMessage, 
+import {
+  User,
+  Project,
+  Task,
+  Document,
+  ChatMessage,
   LogEntry,
   Asset,
   Phase1Data,
@@ -19,14 +19,21 @@ import {
   Phase10SupportData,
 } from '../types';
 
-const supabase = getSupabaseClient();
+let supabase: any = null;
+
+const getSupabase = () => {
+  if (!supabase) {
+    supabase = getSupabaseClient();
+  }
+  return supabase;
+};
 
 // ============================================================================
 // USERS
 // ============================================================================
 export const usersDB = {
   async getUser(userId: string): Promise<User | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('users')
       .select('*')
       .eq('id', userId)
@@ -40,7 +47,7 @@ export const usersDB = {
   },
 
   async listUsers(): Promise<User[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('users')
       .select('*')
       .order('name');
@@ -54,7 +61,7 @@ export const usersDB = {
   },
 
   async listUsersByRole(role: string): Promise<User[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('users')
       .select('*')
       .eq('role', role)
@@ -69,7 +76,7 @@ export const usersDB = {
   },
 
   async createUser(user: Partial<User> & { id: string }): Promise<User | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('users')
       .insert([{
         id: user.id,
@@ -91,7 +98,7 @@ export const usersDB = {
   },
 
   async updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('users')
       .update({
         name: updates.name,
@@ -111,7 +118,7 @@ export const usersDB = {
   },
 
   async deleteUser(userId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('users')
       .delete()
       .eq('id', userId);
@@ -124,7 +131,7 @@ export const usersDB = {
   },
 
   async updateQualificationData(userId: string, qualificationData: any): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('partner_qualification_data')
       .upsert([{
         user_id: userId,
@@ -148,7 +155,7 @@ export const usersDB = {
   },
 
   async getQualificationData(userId: string): Promise<any | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('partner_qualification_data')
       .select('*')
       .eq('user_id', userId)
@@ -168,7 +175,7 @@ export const usersDB = {
 // ============================================================================
 export const userDocumentsDB = {
   async uploadUserDocument(userId: string, document: any): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('user_documents')
       .insert([{
         user_id: userId,
@@ -185,7 +192,7 @@ export const userDocumentsDB = {
   },
 
   async getUserDocuments(userId: string): Promise<any[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('user_documents')
       .select('*')
       .eq('user_id', userId)
@@ -200,7 +207,7 @@ export const userDocumentsDB = {
   },
 
   async deleteUserDocument(documentId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('user_documents')
       .delete()
       .eq('id', documentId);
@@ -218,7 +225,7 @@ export const userDocumentsDB = {
 // ============================================================================
 export const projectsDB = {
   async getProject(projectId: string): Promise<Project | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('projects')
       .select('*')
       .eq('id', projectId)
@@ -233,7 +240,7 @@ export const projectsDB = {
   },
 
   async listProjects(): Promise<Project[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('projects')
       .select('*')
       .order('created_at', { ascending: false });
@@ -247,7 +254,7 @@ export const projectsDB = {
   },
 
   async listProjectsByConsultant(consultantId: string): Promise<Project[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('projects')
       .select('*')
       .eq('consultant_id', consultantId)
@@ -262,7 +269,7 @@ export const projectsDB = {
   },
 
   async listProjectsByClient(clientId: string): Promise<Project[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('project_clients')
       .select('project_id')
       .eq('client_id', clientId);
@@ -291,7 +298,7 @@ export const projectsDB = {
   },
 
   async createProject(project: Partial<Project> & { name: string; consultantId: string }): Promise<Project | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('projects')
       .insert([{
         name: project.name,
@@ -312,7 +319,7 @@ export const projectsDB = {
   },
 
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('projects')
       .update({
         name: updates.name,
@@ -334,7 +341,7 @@ export const projectsDB = {
   },
 
   async deleteProject(projectId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('projects')
       .delete()
       .eq('id', projectId);
@@ -352,7 +359,7 @@ export const projectsDB = {
 // ============================================================================
 export const projectClientsDB = {
   async addClientToProject(projectId: string, clientId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('project_clients')
       .insert([{
         project_id: projectId,
@@ -367,7 +374,7 @@ export const projectClientsDB = {
   },
 
   async removeClientFromProject(projectId: string, clientId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('project_clients')
       .delete()
       .eq('project_id', projectId)
@@ -381,7 +388,7 @@ export const projectClientsDB = {
   },
 
   async getProjectClients(projectId: string): Promise<User[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('project_clients')
       .select('client_id')
       .eq('project_id', projectId);
@@ -404,7 +411,7 @@ export const projectClientsDB = {
 // ============================================================================
 export const documentsDB = {
   async uploadDocument(document: Partial<Document> & { projectId: string; phaseId: number; name: string; url: string }): Promise<Document | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('documents')
       .insert([{
         project_id: document.projectId,
@@ -428,7 +435,7 @@ export const documentsDB = {
   },
 
   async getDocument(documentId: string): Promise<Document | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('documents')
       .select('*')
       .eq('id', documentId)
@@ -443,7 +450,7 @@ export const documentsDB = {
   },
 
   async listProjectDocuments(projectId: string): Promise<Document[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('documents')
       .select('*')
       .eq('project_id', projectId)
@@ -459,7 +466,7 @@ export const documentsDB = {
   },
 
   async listPhaseDocuments(projectId: string, phaseId: number): Promise<Document[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('documents')
       .select('*')
       .eq('project_id', projectId)
@@ -476,7 +483,7 @@ export const documentsDB = {
   },
 
   async deleteDocument(documentId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('documents')
       .update({ status: 'deprecated' })
       .eq('id', documentId);
@@ -494,7 +501,7 @@ export const documentsDB = {
 // ============================================================================
 export const tasksDB = {
   async createTask(task: Partial<Task> & { projectId: string; phaseId: number; description: string; createdBy: string }): Promise<Task | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('tasks')
       .insert([{
         project_id: task.projectId,
@@ -516,7 +523,7 @@ export const tasksDB = {
   },
 
   async listProjectTasks(projectId: string): Promise<Task[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('tasks')
       .select('*')
       .eq('project_id', projectId)
@@ -531,7 +538,7 @@ export const tasksDB = {
   },
 
   async listPhaseTasks(projectId: string, phaseId: number): Promise<Task[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('tasks')
       .select('*')
       .eq('project_id', projectId)
@@ -547,7 +554,7 @@ export const tasksDB = {
   },
 
   async updateTask(taskId: string, updates: Partial<Task>): Promise<Task | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('tasks')
       .update({
         status: updates.status,
@@ -566,7 +573,7 @@ export const tasksDB = {
   },
 
   async deleteTask(taskId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('tasks')
       .delete()
       .eq('id', taskId);
@@ -584,7 +591,7 @@ export const tasksDB = {
 // ============================================================================
 export const chatDB = {
   async sendMessage(projectId: string, chatType: 'client' | 'internal', message: ChatMessage): Promise<ChatMessage | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('chat_messages')
       .insert([{
         project_id: projectId,
@@ -605,7 +612,7 @@ export const chatDB = {
   },
 
   async getMessages(projectId: string, chatType: 'client' | 'internal'): Promise<ChatMessage[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('chat_messages')
       .select('*, users(name, role)')
       .eq('project_id', projectId)
@@ -636,7 +643,7 @@ export const activityLogsDB = {
     const actor = await usersDB.getUser(actorId);
     const actorName = actor?.name || 'Unknown';
     
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('activity_logs')
       .insert([{
         project_id: projectId,
@@ -653,7 +660,7 @@ export const activityLogsDB = {
   },
 
   async getActivityLog(projectId: string): Promise<LogEntry[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('activity_logs')
       .select('*')
       .eq('project_id', projectId)
@@ -684,7 +691,7 @@ export const activityLogsDB = {
 // ============================================================================
 export const phaseDataDB = {
   async getPhase1Data(projectId: string): Promise<Phase1Data | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('phase_1_data')
       .select('*')
       .eq('project_id', projectId)
@@ -698,7 +705,7 @@ export const phaseDataDB = {
   },
 
   async updatePhase1Data(projectId: string, phaseData: Partial<Phase1Data>): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('phase_1_data')
       .upsert([{
         project_id: projectId,
@@ -720,7 +727,7 @@ export const phaseDataDB = {
   },
 
   async getPhase2Data(projectId: string): Promise<Phase2Data | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('phase_2_data')
       .select('*')
       .eq('project_id', projectId)
@@ -763,7 +770,7 @@ export const phaseDataDB = {
     
     if (!phase2Id) return false;
     
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('phase_2_data')
       .update({
         company_name: phaseData.companyData?.name,
@@ -780,7 +787,7 @@ export const phaseDataDB = {
   },
 
   async getPhase3Data(projectId: string): Promise<Phase3Data | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('phase_3_data')
       .select('*')
       .eq('project_id', projectId)
@@ -804,7 +811,7 @@ export const phaseDataDB = {
   },
 
   async updatePhase3Data(projectId: string, phaseData: Partial<Phase3Data>): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('phase_3_data')
       .upsert([{
         project_id: projectId,
@@ -847,7 +854,7 @@ export const assetsDB = {
     
     if (!phase3DataId) return null;
     
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('assets')
       .insert([{
         phase_3_data_id: phase3DataId,
@@ -870,7 +877,7 @@ export const assetsDB = {
   },
 
   async updateAsset(assetId: string, updates: Partial<Asset>): Promise<Asset | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('assets')
       .update({
         type: updates.type,
@@ -891,7 +898,7 @@ export const assetsDB = {
   },
 
   async deleteAsset(assetId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('assets')
       .delete()
       .eq('id', assetId);
@@ -912,7 +919,7 @@ export const assetsDB = {
     
     if (!phase3) return [];
     
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('assets')
       .select('*')
       .eq('phase_3_data_id', phase3.id)
@@ -932,7 +939,7 @@ export const assetsDB = {
 // ============================================================================
 export const notificationsDB = {
   async createNotification(notification: any): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('notifications')
       .insert([{
         recipient_id: notification.recipientId,
@@ -950,7 +957,7 @@ export const notificationsDB = {
   },
 
   async getUserNotifications(userId: string): Promise<any[]> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('notifications')
       .select('*')
       .eq('recipient_id', userId)
@@ -966,7 +973,7 @@ export const notificationsDB = {
   },
 
   async markNotificationAsRead(notificationId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('notifications')
       .update({ is_read: true })
       .eq('id', notificationId);

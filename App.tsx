@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, Project, UserRole, Notification, Task, ChatMessage, NewClientData, PartnerDataForPhase2, Document, ITBIProcessData, Phase6RegistrationData, RegistrationProcessData, Phase5ITBIData, UserDocument, UserDocumentCategory, LogEntry, Asset } from './types';
-import { getInitialProjectPhases } from './constants';
+import { User, Project, UserRole, Notification, Task, ChatMessage, NewClientData } from './types';
 
 // Supabase Services
 import supabaseAuthService from './services/supabaseAuth';
-import dataMigrationService from './services/dataMigration';
-import { usersDB, projectsDB, projectClientsDB, tasksDB, chatDB, activityLogsDB, phaseDataDB, assetsDB } from './services/supabaseDatabase';
+import { usersDB, projectsDB, projectClientsDB, tasksDB, chatDB, activityLogsDB } from './services/supabaseDatabase';
 
 // Component Imports
 import LoginScreen from './components/LoginScreen';
@@ -16,7 +14,6 @@ import Dashboard from './components/Dashboard';
 import ConsultantDashboard from './components/ConsultantDashboard';
 import AuxiliaryDashboard from './components/AuxiliaryDashboard';
 import ProjectDetailView from './components/ProjectDetailView';
-import CreateUserScreen from './components/CreateUserScreen';
 import CreateClientScreen from './components/CreateClientScreen';
 import ManageUsersScreen from './components/ManageUsersScreen';
 import MyDataScreen from './components/MyDataScreen';
@@ -30,27 +27,20 @@ import Icon from './components/Icon';
 import SupportDashboard from './components/SupportDashboard';
 
 // ============================================================================
-// STATE MANAGEMENT HOOK (Refactored for Supabase)
+// STATE MANAGEMENT HOOK
 // ============================================================================
 
 const useStore = () => {
-    // Authentication State
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [userForPasswordChange, setUserForPasswordChange] = useState<User | null>(null);
-    
-    // Data State (loaded from Supabase)
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
-    
-    // UI State
     const [currentView, setCurrentView] = useState<string>('dashboard');
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [activeChat, setActiveChat] = useState<{ projectId: string; chatType: 'client' | 'internal' } | null>(null);
     const [targetPhaseId, setTargetPhaseId] = useState<number | null>(null);
-    
-    // AI Chat State
     const [isAiChatOpen, setIsAiChatOpen] = useState(false);
     const [aiChatMessages, setAiChatMessages] = useState<ChatMessage[]>([]);
     const [aiChatSession, setAiChatSession] = useState<ReturnType<typeof createAIChatSession> | null>(null);
@@ -58,7 +48,7 @@ const useStore = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // ========================================================================
-    // INITIALIZATION: Set up auth state listener and load data
+    // INITIALIZATION
     // ========================================================================
     
     useEffect(() => {
@@ -66,22 +56,14 @@ const useStore = () => {
             try {
                 setIsLoading(true);
 
-                // Check if database needs initialization
-                const dbStatus = await dataMigrationService.getStatus();
-                if (!dbStatus.isSeeded) {
-                    console.log('🚀 First time setup - initializing database...');
-                    const result = await dataMigrationService.initializeDatabase();
-                    if (!result.success) {
-                        console.error('Database initialization failed:', result.message);
-                    }
-                }
-
-                // Try to restore current session
                 const user = await supabaseAuthService.getCurrentUser();
                 if (user) {
                     setCurrentUser(user);
-                    // Load data for authenticated user
-                    await loadUserData(user.id);
+                    try {
+                        await loadUserData(user.id);
+                    } catch (dataError) {
+                        console.error('Error loading user data:', dataError);
+                    }
                 } else {
                     setCurrentUser(null);
                     setAllUsers([]);
@@ -97,14 +79,17 @@ const useStore = () => {
 
         initializeAuth();
 
-        // Listen for auth state changes (sign in, sign out, etc.)
         const unsubscribe = supabaseAuthService.onAuthStateChange(
             async (event, session) => {
                 if (event === 'SIGNED_IN' && session) {
                     const user = await supabaseAuthService.getCurrentUser();
                     if (user) {
                         setCurrentUser(user);
-                        await loadUserData(user.id);
+                        try {
+                            await loadUserData(user.id);
+                        } catch (dataError) {
+                            console.error('Error loading user data:', dataError);
+                        }
                     }
                 } else if (event === 'SIGNED_OUT') {
                     setCurrentUser(null);
@@ -121,29 +106,37 @@ const useStore = () => {
     }, []);
 
     // ========================================================================
-    // DATA LOADING FUNCTIONS
+    // DATA LOADING
     // ========================================================================
 
     const loadUserData = useCallback(async (userId: string) => {
         try {
-            // Load all users (for consultants/admins)
             const users = await usersDB.listUsers();
             setAllUsers(users);
 
-            // Load projects based on role
             const user = users.find(u => u.id === userId);
-            if (!user) return;
+            if (!user) {
+                setProjects([]);
+                return;
+            }
 
             let userProjects: Project[] = [];
-            if (user.role === UserRole.CLIENT) {
-                userProjects = await projectsDB.listProjectsByClient(userId);
-            } else {
-                userProjects = await projectsDB.listProjects();
+            try {
+                if (user.role === UserRole.CLIENT) {
+                    userProjects = await projectsDB.listProjectsByClient(userId);
+                } else {
+                    userProjects = await projectsDB.listProjects();
+                }
+            } catch (projectError) {
+                console.error('Error loading projects:', projectError);
+                userProjects = [];
             }
 
             setProjects(userProjects);
         } catch (error) {
             console.error('Error loading user data:', error);
+            setAllUsers([]);
+            setProjects([]);
         }
     }, []);
 
@@ -209,12 +202,10 @@ const useStore = () => {
     }, [projects, allUsers]);
 
     // ========================================================================
-    // ACTIONS (Now using Supabase APIs)
+    // ACTIONS
     // ========================================================================
 
     const actions = {
-        // ====== AUTHENTICATION ======
-        
         handleLogin: async (email: string, password: string) => {
             const result = await supabaseAuthService.signInWithEmail(email, password);
             
@@ -253,8 +244,6 @@ const useStore = () => {
             setUserForPasswordChange(null);
         },
 
-        // ====== NAVIGATION ======
-        
         handleNavigate: (view: string) => {
             if (view !== 'project_detail' && view !== 'project_documents') {
                 setTargetPhaseId(null);
@@ -283,18 +272,14 @@ const useStore = () => {
             setCurrentView('project_documents');
         },
 
-        // ====== PROJECT MANAGEMENT ======
-        
         handleUpdateProject: async (projectId: string, data: Partial<Project>) => {
             const oldProject = projects.find(p => p.id === projectId);
             if (!oldProject) return;
 
-            // Log phase change
             if (data.currentPhaseId && data.currentPhaseId !== oldProject.currentPhaseId && currentUser) {
                 await activityLogsDB.addLogEntry(projectId, currentUser.id, `avançou o projeto para a Fase ${data.currentPhaseId}.`);
             }
 
-            // Update in database
             const updated = await projectsDB.updateProject(projectId, data);
             if (updated) {
                 await reloadProjects();
@@ -305,7 +290,6 @@ const useStore = () => {
             const updated = await usersDB.updateUser(userId, data);
             
             if (updated) {
-                // Update local state
                 setAllUsers(prev => prev.map(u => u.id === userId ? updated : u));
                 
                 if (currentUser?.id === userId) {
@@ -326,7 +310,6 @@ const useStore = () => {
             });
 
             if (task) {
-                // Optionally reload projects to get updated tasks
                 await reloadProjects();
             }
         },
@@ -345,8 +328,6 @@ const useStore = () => {
             }
         },
 
-        // ====== CHAT ======
-        
         handleOpenChat: (chatType: 'client' | 'internal') => {
             if (selectedProject) {
                 setActiveChat({ projectId: selectedProject.id, chatType });
@@ -368,7 +349,6 @@ const useStore = () => {
 
             const sent = await chatDB.sendMessage(selectedProject.id, activeChat.chatType, message);
             if (sent) {
-                // Reload project to get updated chat
                 await reloadProjects();
             }
         },
@@ -392,8 +372,6 @@ const useStore = () => {
             }
         },
 
-        // ====== CLIENT & PROJECT CREATION ======
-        
         handleCreateClient: async (projectName: string, mainClientData: NewClientData, additionalClientsData: NewClientData[], contractFile: File) => {
             if (!currentUser) return;
 
@@ -401,7 +379,6 @@ const useStore = () => {
                 const allNewClientsData = [mainClientData, ...additionalClientsData];
                 const createdUserIds: string[] = [];
 
-                // Create users via Auth
                 for (const clientData of allNewClientsData) {
                     const result = await supabaseAuthService.signUpWithEmail(
                         clientData.email,
@@ -416,22 +393,18 @@ const useStore = () => {
                     }
                 }
 
-                // Create project
                 const project = await projectsDB.createProject({
                     name: projectName,
                     consultantId: currentUser.id,
                 } as any);
 
                 if (project) {
-                    // Add clients to project
                     for (const clientId of createdUserIds) {
                         await projectClientsDB.addClientToProject(project.id, clientId);
                     }
 
-                    // Log creation
                     await activityLogsDB.addLogEntry(project.id, currentUser.id, 'criou o projeto.');
 
-                    // Reload data
                     await reloadProjects();
                     setCurrentView('dashboard');
                 }
@@ -440,8 +413,6 @@ const useStore = () => {
             }
         },
 
-        // ====== AI ======
-        
         handleAiSendMessage: async (content: string) => {
             if (!currentUser || !aiChatSession) return;
 
@@ -519,25 +490,15 @@ const App = () => {
         ]);
       } catch (error) {
           console.error("Failed to initialize AI Chat Session:", error);
-          store.setAiChatMessages([
-             {
-                  id: 'initial-ai-msg-error',
-                  authorId: 'ai',
-                  authorName: 'Assistente IA',
-                  content: 'Não foi possível iniciar o assistente de IA. A funcionalidade de chat com IA estará desativada.',
-                  timestamp: new Date().toISOString(),
-                  authorRole: UserRole.CONSULTANT,
-              }
-          ]);
       }
     }
-  }, [store.currentUser]);
+  }, [store.currentUser, store.aiChatSession, store.setAiChatSession, store.setAiChatMessages]);
 
   if (store.isLoading) {
-    return <div className="flex items-center justify-center h-screen bg-gray-100">
-      <div className="text-center">
-        <p className="text-xl text-gray-700 mb-4">Carregando...</p>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto"></div>
+    return <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f3f4f6', fontFamily: 'sans-serif'}}>
+      <div style={{textAlign: 'center'}}>
+        <p style={{fontSize: '1.25rem', color: '#374151', marginBottom: '1rem'}}>Carregando...</p>
+        <div style={{width: '3rem', height: '3rem', margin: '0 auto', borderRadius: '50%', borderTop: '2px solid #004c59'}}></div>
       </div>
     </div>;
   }
@@ -629,7 +590,7 @@ const App = () => {
                         onBack={store.actions.handleBackToDashboard} 
                         onDeleteUser={(id) => {
                             usersDB.deleteUser(id);
-                            setAllUsers(u => u.filter(user => user.id !== id));
+                            store.setAllUsers(u => u.filter(user => user.id !== id));
                         }}
                         onNavigateToCreate={(role) => store.actions.handleNavigate('create_user')}
                         onResetPassword={(id) => {
@@ -661,7 +622,7 @@ const App = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div style={{display: 'flex', height: '100vh', backgroundColor: '#f8f9fa'}}>
       <Sidebar 
         userRole={store.currentUser.role} 
         onNavigate={store.actions.handleNavigate} 
@@ -669,7 +630,7 @@ const App = () => {
         isOpen={store.isSidebarOpen}
         onClose={() => store.setIsSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div style={{display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden'}}>
         <Header 
           user={store.currentUser} 
           onLogout={store.actions.handleLogout}
@@ -679,7 +640,7 @@ const App = () => {
           onNavigateToMyData={() => store.actions.handleNavigate('my_data')}
           onToggleSidebar={() => store.setIsSidebarOpen(prev => !prev)}
         />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-brand-light">
+        <main style={{flex: 1, overflowX: 'hidden', overflowY: 'auto', backgroundColor: '#f8f9fa'}}>
           {renderView()}
         </main>
       </div>
@@ -707,10 +668,10 @@ const App = () => {
       {!store.isAiChatOpen && (
           <button 
             onClick={() => store.setIsAiChatOpen(true)}
-            className="fixed bottom-6 right-6 bg-brand-primary text-white rounded-full p-4 shadow-lg hover:bg-brand-dark transition-transform hover:scale-110"
+            style={{position: 'fixed', bottom: '1.5rem', right: '1.5rem', backgroundColor: '#004c59', color: 'white', borderRadius: '50%', padding: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', cursor: 'pointer', border: 'none'}}
             aria-label="Abrir chat com assistente IA"
           >
-              <Icon name="ai" className="w-8 h-8"/>
+              <Icon name="ai" style={{width: '2rem', height: '2rem'}}/>
           </button>
       )}
     </div>
