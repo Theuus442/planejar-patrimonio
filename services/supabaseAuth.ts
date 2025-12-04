@@ -48,7 +48,7 @@ export const supabaseAuthService = {
   ): Promise<{ user: User; session: AuthSession } | null> {
     try {
       // Step 1: Create Auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await getSupabaseAuth().auth.signUp({
         email,
         password,
         options: {
