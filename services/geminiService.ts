@@ -29,18 +29,28 @@ const AI_PERSONA = `Persona: Você é um assistente de IA para uma plataforma de
 
 class AIChatSession {
     private chat: Chat;
+    private isAvailable: boolean = false;
 
     constructor() {
-        this.chat = getAi().chats.create({
-            model: 'gemini-2.5-flash',
-            config: {
-                systemInstruction: AI_PERSONA,
-                temperature: 0.5,
-            }
-        });
+        try {
+            this.chat = getAi().chats.create({
+                model: 'gemini-2.5-flash',
+                config: {
+                    systemInstruction: AI_PERSONA,
+                    temperature: 0.5,
+                }
+            });
+            this.isAvailable = true;
+        } catch (error) {
+            console.warn("AI Chat not available:", error instanceof Error ? error.message : String(error));
+            this.isAvailable = false;
+        }
     }
 
     async sendMessage(message: string): Promise<string> {
+        if (!this.isAvailable) {
+            return "Assistente de IA não está disponível. Configure a chave da API do Google Gemini para ativar este recurso.";
+        }
         try {
             const response = await this.chat.sendMessage({ message });
             return response.text;
@@ -52,7 +62,12 @@ class AIChatSession {
 }
 
 export const createAIChatSession = () => {
-    return new AIChatSession();
+    try {
+        return new AIChatSession();
+    } catch (error) {
+        console.warn("Could not create AI chat session:", error instanceof Error ? error.message : String(error));
+        return new AIChatSession(); // Return instance anyway, but it won't be available
+    }
 };
 
 export const getAIHelp = async (question: string): Promise<ChatMessage> => {
