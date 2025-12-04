@@ -16,6 +16,7 @@ import ConsultantDashboard from './components/ConsultantDashboard';
 import AuxiliaryDashboard from './components/AuxiliaryDashboard';
 import ProjectDetailView from './components/ProjectDetailView';
 import CreateClientScreen from './components/CreateClientScreen';
+import CreateUserScreen from './components/CreateUserScreen';
 import ManageUsersScreen from './components/ManageUsersScreen';
 import MyDataScreen from './components/MyDataScreen';
 import MyTasksScreen from './components/MyTasksScreen';
@@ -608,11 +609,11 @@ const App = () => {
         case 'create_client':
             return <CreateClientScreen onBack={store.actions.handleBackToDashboard} onCreateClient={store.actions.handleCreateClient} allUsers={store.allUsers} />;
         case 'manage_users':
-            return <ManageUsersScreen 
+            return <ManageUsersScreen
                         users={store.allUsers}
                         projects={store.projects}
                         currentUser={store.currentUser}
-                        onBack={store.actions.handleBackToDashboard} 
+                        onBack={store.actions.handleBackToDashboard}
                         onDeleteUser={(id) => {
                             usersDB.deleteUser(id);
                             store.setAllUsers(u => u.filter(user => user.id !== id));
@@ -620,6 +621,13 @@ const App = () => {
                         onNavigateToCreate={(role) => store.actions.handleNavigate('create_user')}
                         onResetPassword={(id) => {
                             alert('A funcionalidade de reset de senha está em desenvolvimento.');
+                        }}
+                    />;
+        case 'create_user':
+            return <CreateUserScreen
+                        onBack={() => store.actions.handleNavigate('manage_users')}
+                        onCreateUser={() => {
+                            loadUserData(store.currentUser.id);
                         }}
                     />;
         case 'my_tasks':
