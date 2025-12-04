@@ -24,30 +24,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onRequirePasswordChange, onLo
     }
   }, []);
 
-  const handleForgotPassword = async () => {
-    const userEmail = window.prompt("Por favor, digite seu e-mail para redefinir a senha:");
-    if (!userEmail) return;
-
-    if (!/\S+@\S+\.\S+/.test(userEmail)) {
-      alert("Por favor, insira um endereço de e-mail válido.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    try {
-      const success = await onForgotPassword(userEmail);
-      if (success) {
-        alert("Se o e-mail estiver cadastrado em nosso sistema, você receberá um link para redefinir sua senha.");
-      } else {
-        alert("Não foi possível enviar o e-mail de redefinição de senha. Tente novamente mais tarde.");
-      }
-    } catch (err) {
-      console.error("Forgot password error:", err);
-      alert("Ocorreu um problema ao tentar enviar o e-mail de redefinição. Tente novamente mais tarde.");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleForgotPassword = () => {
+    window.location.href = '/esqueci-senha';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
