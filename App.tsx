@@ -51,6 +51,7 @@ const useStore = () => {
     const [aiChatSession, setAiChatSession] = useState<ReturnType<typeof createAIChatSession> | null>(null);
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
     // ========================================================================
     // INITIALIZATION
@@ -90,7 +91,12 @@ const useStore = () => {
 
         const unsubscribe = supabaseAuthService.onAuthStateChange(
             async (event, session) => {
-                if (event === 'SIGNED_IN' && session) {
+                console.log('Auth event:', event);
+
+                if (event === 'PASSWORD_RECOVERY') {
+                    console.log('Modo de recuperação de senha ativado');
+                    setIsRecoveryMode(true);
+                } else if (event === 'SIGNED_IN' && session) {
                     const user = await supabaseAuthService.getCurrentUser();
                     if (user) {
                         setCurrentUser(user);
@@ -105,6 +111,7 @@ const useStore = () => {
                     setAllUsers([]);
                     setProjects([]);
                     setCurrentView('dashboard');
+                    setIsRecoveryMode(false);
                 }
             }
         );
@@ -599,15 +606,31 @@ const App = () => {
 
   if (store.isLoading) {
     return <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f3f4f6', fontFamily: 'sans-serif'}}>
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .loading-spinner {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
       <div style={{textAlign: 'center'}}>
         <p style={{fontSize: '1.25rem', color: '#374151', marginBottom: '1rem'}}>Carregando...</p>
-        <div style={{width: '3rem', height: '3rem', margin: '0 auto', borderRadius: '50%', borderTop: '2px solid #004c59'}}></div>
+        <div className="loading-spinner" style={{width: '3rem', height: '3rem', margin: '0 auto', borderRadius: '50%', borderTop: '2px solid #004c59', borderRight: '2px solid transparent', borderBottom: '2px solid transparent', borderLeft: '2px solid transparent'}}></div>
       </div>
     </div>;
   }
 
   if (store.userForPasswordChange) {
     return <ChangePasswordScreen user={store.userForPasswordChange} onPasswordChanged={store.actions.handlePasswordChanged} onCancel={store.actions.handleCancelPasswordChange} />;
+  }
+
+  // Handle password recovery mode - when user clicks the recovery link in email
+  if (isRecoveryMode && store.currentUser) {
+    return <ResetPasswordScreen onResetComplete={() => {
+      setIsRecoveryMode(false);
+      window.location.href = '/';
+    }} />;
   }
 
   // Handle special routes (not requiring user to be logged in)
