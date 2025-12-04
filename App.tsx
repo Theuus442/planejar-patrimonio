@@ -715,11 +715,11 @@ const App = () => {
                    />;
         case 'documents':
             if (store.currentUser.role === UserRole.CLIENT) {
-                return store.selectedProject ? <DocumentsView project={store.selectedProject} users={store.allUsers} onUploadDocument={() => {}} /> : <div>Selecione um projeto</div>
+                return store.selectedProject ? <DocumentsView project={store.selectedProject} users={store.allUsers} onUploadDocument={store.actions.handleUploadDocument} /> : <div>Selecione um projeto</div>
             }
             return <ProjectsDocumentsView projects={store.projects} onProjectClick={store.actions.handleSelectProjectForDocuments} />;
          case 'project_documents':
-            return store.selectedProject ? <DocumentsView project={store.selectedProject} users={store.allUsers} onUploadDocument={() => {}} onBack={() => store.actions.handleNavigate('documents')} /> : <div>Projeto não encontrado.</div>;
+            return store.selectedProject ? <DocumentsView project={store.selectedProject} users={store.allUsers} onUploadDocument={store.actions.handleUploadDocument} onBack={() => store.actions.handleNavigate('documents')} /> : <div>Projeto não encontrado.</div>;
         case 'support':
             return <SupportDashboard projects={store.projects} users={store.allUsers} currentUser={store.currentUser} onUpdateProject={store.actions.handleUpdateProject} />;
         default:
