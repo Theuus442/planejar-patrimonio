@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import Icon from './Icon';
@@ -39,11 +36,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onRequirePasswordChange, onLo
     setIsLoading(true);
     setError('');
     try {
-      await onForgotPassword(userEmail);
-      alert("Se o e-mail estiver cadastrado em nosso sistema, uma mensagem de redefinição de senha foi simulada.");
+      const success = await onForgotPassword(userEmail);
+      if (success) {
+        alert("Se o e-mail estiver cadastrado em nosso sistema, você receberá um link para redefinir sua senha.");
+      } else {
+        alert("Não foi possível enviar o e-mail de redefinição de senha. Tente novamente mais tarde.");
+      }
     } catch (err) {
       console.error("Forgot password error:", err);
-      alert("Ocorreu um problema ao tentar simular o envio do e-mail de redefinição. Tente novamente mais tarde.");
+      alert("Ocorreu um problema ao tentar enviar o e-mail de redefinição. Tente novamente mais tarde.");
     } finally {
       setIsLoading(false);
     }
