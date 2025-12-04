@@ -4,7 +4,6 @@ import { User, Project, UserRole, Notification, Task, ChatMessage, NewClientData
 // Supabase Services
 import supabaseAuthService from './services/supabaseAuth';
 import { usersDB, projectsDB, projectClientsDB, tasksDB, chatDB, activityLogsDB } from './services/supabaseDatabase';
-import dataMigrationService from './services/dataMigration';
 
 // Component Imports
 import LoginScreen from './components/LoginScreen';
@@ -56,26 +55,6 @@ const useStore = () => {
         const initializeAuth = async () => {
             try {
                 setIsLoading(true);
-
-                // Initialize database if empty
-                try {
-                    const dbStatus = await dataMigrationService.getStatus();
-                    if (!dbStatus.isSeeded) {
-                        console.log('🚀 First time setup - initializing database...');
-                        const result = await dataMigrationService.initializeDatabase();
-                        if (result.success) {
-                            console.log('✅ Database initialized successfully');
-                            result.details.forEach(detail => console.log(detail));
-                        } else {
-                            console.warn('⚠️  Database initialization incomplete:', result.message);
-                            result.details.forEach(detail => console.warn(detail));
-                            console.warn('Note: Some test users may not have been created. You can retry initialization later.');
-                        }
-                    }
-                } catch (dbError) {
-                    console.error('Error during database initialization:', dbError);
-                    console.warn('⚠️  Initialization error - app will continue loading. Check browser console for details.');
-                }
 
                 const user = await supabaseAuthService.getCurrentUser();
                 if (user) {
