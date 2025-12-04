@@ -107,7 +107,7 @@ export const supabaseAuthService = {
   ): Promise<{ user: User; session: AuthSession } | null> {
     try {
       // Authenticate with Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await getSupabaseAuth().auth.signInWithPassword({
         email,
         password,
       });
@@ -170,7 +170,7 @@ export const supabaseAuthService = {
    */
   async getCurrentSession(): Promise<AuthSession | null> {
     try {
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await getSupabaseAuth().auth.getSession();
 
       if (error) {
         console.error('Get session error:', error);
@@ -201,7 +201,7 @@ export const supabaseAuthService = {
    */
   async getCurrentUser(): Promise<User | null> {
     try {
-      const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await getSupabaseAuth().auth.getUser();
 
       if (error) {
         console.error('Get user error:', error);
@@ -225,7 +225,7 @@ export const supabaseAuthService = {
    */
   async refreshSession(): Promise<AuthSession | null> {
     try {
-      const { data, error } = await supabase.auth.refreshSession();
+      const { data, error } = await getSupabaseAuth().auth.refreshSession();
 
       if (error) {
         console.error('Refresh session error:', error);
@@ -304,7 +304,7 @@ export const supabaseAuthService = {
    */
   async verifyOTP(email: string, token: string, type: 'recovery' | 'email_change' | 'phone_change' = 'recovery'): Promise<AuthSession | null> {
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      const { data, error } = await getSupabaseAuth().auth.verifyOtp({
         email,
         token,
         type,
