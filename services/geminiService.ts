@@ -5,13 +5,23 @@ import { fileToBase64 } from "../utils/fileUtils";
 // Lazy initialization for the GoogleGenAI instance to prevent crashes on startup
 // in environments where the API key is not immediately available.
 let ai: GoogleGenAI | null = null;
+let aiInitError: Error | null = null;
+
 const getAi = (): GoogleGenAI => {
-  if (!ai) {
-    // The API key must be obtained from the environment variable process.env.API_KEY.
-    // The polyfill in index.html ensures this object path exists, even if the key is empty initially.
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  if (!ai && !aiInitError) {
+    try {
+      const apiKey = process.env.API_KEY || import.meta.env.VITE_GOOGLE_GENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error('No Google Gemini API key configured');
+      }
+      ai = new GoogleGenAI({ apiKey });
+    } catch (error) {
+      aiInitError = error instanceof Error ? error : new Error(String(error));
+      console.warn('AI features disabled:', aiInitError.message);
+    }
   }
-  return ai;
+  if (aiInitError) throw aiInitError;
+  return ai!;
 };
 
 
