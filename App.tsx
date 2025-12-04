@@ -625,6 +625,14 @@ const App = () => {
     return <ChangePasswordScreen user={store.userForPasswordChange} onPasswordChanged={store.actions.handlePasswordChanged} onCancel={store.actions.handleCancelPasswordChange} />;
   }
 
+  // Handle password recovery mode - when user clicks the recovery link in email
+  if (isRecoveryMode && store.currentUser) {
+    return <ResetPasswordScreen onResetComplete={() => {
+      setIsRecoveryMode(false);
+      window.location.href = '/';
+    }} />;
+  }
+
   // Handle special routes (not requiring user to be logged in)
   if (!store.currentUser) {
     if (currentRoute === '/esqueci-senha') {
