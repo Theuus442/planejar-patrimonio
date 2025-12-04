@@ -110,6 +110,7 @@ export const supabaseAuthService = {
       // The auth metadata is stored in Supabase Auth, but we also need it in the users table
       let user = null;
       let dbRetries = 3;
+      let lastDbError: any = null;
 
       while (dbRetries > 0 && !user) {
         try {
@@ -122,20 +123,31 @@ export const supabaseAuthService = {
           });
 
           if (user) break;
-        } catch (dbError) {
+        } catch (dbError: any) {
+          lastDbError = dbError;
+          const errorMsg = dbError?.message || String(dbError);
+
+          // Don't retry on body stream errors - they won't recover
+          if (errorMsg.includes('body stream already read')) {
+            console.error('Non-retryable database error (body stream):', dbError);
+            dbRetries = 0;
+            break;
+          }
+
           dbRetries--;
           if (dbRetries > 0) {
+            console.warn(`Database error - retrying (${dbRetries} left):`, errorMsg);
             // Wait a bit before retrying
             await new Promise(resolve => setTimeout(resolve, 500));
           } else {
             console.error('Failed to create database user after retries:', dbError);
-            // Continue anyway - the user exists in Auth at least
           }
         }
       }
 
       if (!user) {
-        throw new Error('Failed to create database user record');
+        const errorMsg = lastDbError?.message || 'Failed to create database user record';
+        throw new Error(errorMsg);
       }
 
       return {
