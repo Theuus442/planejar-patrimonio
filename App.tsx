@@ -558,6 +558,13 @@ const useStore = () => {
 
 const App = () => {
   const store = useStore();
+  const [currentRoute, setCurrentRoute] = useState<string>('');
+
+  useEffect(() => {
+    // Detect current route from URL pathname
+    const pathname = window.location.pathname;
+    setCurrentRoute(pathname);
+  }, []);
 
   useEffect(() => {
     if (store.currentUser && !store.aiChatSession) {
