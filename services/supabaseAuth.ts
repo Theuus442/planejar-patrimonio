@@ -2,7 +2,14 @@ import { getSupabaseClient } from './supabaseService';
 import { usersDB } from './supabaseDatabase';
 import { User, UserRole } from '../types';
 
-const supabase = getSupabaseClient();
+let supabase: any = null;
+
+const getSupabaseAuth = () => {
+  if (!supabase) {
+    supabase = getSupabaseClient();
+  }
+  return supabase;
+};
 
 // ============================================================================
 // AUTH STATE MANAGEMENT
