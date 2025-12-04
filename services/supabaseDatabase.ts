@@ -33,7 +33,7 @@ const getSupabase = () => {
 // ============================================================================
 export const usersDB = {
   async getUser(userId: string): Promise<User | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('users')
       .select('*')
       .eq('id', userId)
