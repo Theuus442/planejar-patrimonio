@@ -574,12 +574,14 @@ const App = () => {
   }, [store.currentUser]);
 
   if (store.isLoading) {
-    return <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f3f4f6'}}>
-      <div style={{textAlign: 'center'}}>
-        <p style={{fontSize: '1.25rem', color: '#374151', marginBottom: '1rem'}}>Carregando...</p>
-        <div style={{animation: 'spin 1s linear infinite', borderRadius: '50%', height: '3rem', width: '3rem', borderTop: '2px solid #004c59', margin: '0 auto'}}></div>
+    return (
+      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f3f4f6', fontFamily: 'sans-serif'}}>
+        <div style={{textAlign: 'center'}}>
+          <p style={{fontSize: '1.25rem', color: '#374151', marginBottom: '1rem'}}>Carregando...</p>
+          <div style={{width: '3rem', height: '3rem', margin: '0 auto', borderRadius: '50%', borderTop: '2px solid #004c59', animation: 'spin 1s linear infinite'}}></div>
+        </div>
       </div>
-    </div>;
+    );
   }
   
   if (store.userForPasswordChange) {
