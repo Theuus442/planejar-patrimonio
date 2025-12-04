@@ -67,30 +67,48 @@ const useStore = () => {
                 setIsLoading(true);
 
                 try {
-                    // Try to restore current session
-                    const user = await supabaseAuthService.getCurrentUser();
-                    if (user) {
-                        setCurrentUser(user);
-                        // Load data for authenticated user
+                    // Set a timeout for auth initialization
+                    const authPromise = (async () => {
                         try {
-                            await loadUserData(user.id);
-                        } catch (dataError) {
-                            console.error('Error loading user data:', dataError);
-                            // Continue anyway - app should still load
+                            // Try to restore current session
+                            const user = await supabaseAuthService.getCurrentUser();
+                            if (user) {
+                                setCurrentUser(user);
+                                // Load data for authenticated user
+                                try {
+                                    await loadUserData(user.id);
+                                } catch (dataError) {
+                                    console.error('Error loading user data:', dataError);
+                                    // Continue anyway - app should still load
+                                }
+                            } else {
+                                setCurrentUser(null);
+                                setAllUsers([]);
+                                setProjects([]);
+                            }
+                        } catch (authError) {
+                            console.error('Error getting current user:', authError);
+                            setCurrentUser(null);
+                            setAllUsers([]);
+                            setProjects([]);
                         }
-                    } else {
-                        setCurrentUser(null);
-                        setAllUsers([]);
-                        setProjects([]);
-                    }
-                } catch (authError) {
-                    console.error('Error getting current user:', authError);
+                    })();
+
+                    // Wait max 5 seconds for auth init
+                    await Promise.race([
+                        authPromise,
+                        new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('Auth init timeout')), 5000)
+                        ),
+                    ]);
+                } catch (error) {
+                    console.error('Auth initialization error:', error);
                     setCurrentUser(null);
                     setAllUsers([]);
                     setProjects([]);
                 }
             } catch (error) {
-                console.error('Auth initialization error:', error);
+                console.error('Fatal initialization error:', error);
                 setCurrentUser(null);
             } finally {
                 setIsLoading(false);
