@@ -119,8 +119,8 @@ export const generateAIDraft = async (prompt: string): Promise<string> => {
 
         return response.text;
     } catch (error) {
-        console.error("Error calling Gemini API for draft generation:", error);
-        return "Ocorreu um erro ao gerar o rascunho. Tente novamente.";
+        console.warn("AI draft generation not available:", error instanceof Error ? error.message : String(error));
+        return "Recurso de geração de rascunhos via IA não está disponível. Configure a chave da API do Google Gemini.";
     }
 };
 
