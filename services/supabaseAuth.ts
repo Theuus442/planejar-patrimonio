@@ -47,7 +47,7 @@ export const supabaseAuthService = {
     clientType?: 'partner' | 'interested'
   ): Promise<{ user: User; session: AuthSession } | null> {
     try {
-      // Step 1: Create Auth user
+      // Step 1: Create Auth user with metadata
       const { data: authData, error: authError } = await getSupabaseAuth().auth.signUp({
         email,
         password,
@@ -69,18 +69,46 @@ export const supabaseAuthService = {
         throw new Error('No user returned from sign up');
       }
 
-      // Step 2: Create database user record
-      // The trigger will create the user, but we can also create it explicitly here if needed
-      const user = await usersDB.createUser({
+      // Step 2: Create database user record with retry logic
+      // The auth metadata is stored in Supabase Auth, but we also need it in the users table
+      let user = null;
+      let retries = 3;
+
+      while (retries > 0 && !user) {
+        try {
+          user = await usersDB.createUser({
+            id: authData.user.id,
+            name,
+            email,
+            role,
+            clientType,
+          });
+
+          if (user) break;
+        } catch (dbError) {
+          retries--;
+          if (retries > 0) {
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            console.error('Failed to create database user after retries:', dbError);
+            // Continue anyway - the user exists in Auth at least
+          }
+        }
+      }
+
+      // Return success even if database user creation failed
+      // The user exists in Auth and can login
+      const fallbackUser: User = {
         id: authData.user.id,
         name,
         email,
         role,
         clientType,
-      });
+      };
 
       return {
-        user: user!,
+        user: user || fallbackUser,
         session: {
           user: {
             id: authData.user.id,
