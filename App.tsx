@@ -58,6 +58,7 @@ const useStore = () => {
                 setIsLoading(true);
 
                 // Initialize database if empty (first time setup)
+                // This is non-blocking - app continues even if initialization fails
                 try {
                     const dbStatus = await dataMigrationService.getStatus();
                     if (!dbStatus.isSeeded) {
@@ -67,12 +68,17 @@ const useStore = () => {
                             console.log('✅ Database initialized successfully!');
                             initResult.details.forEach(detail => console.log(`  ${detail}`));
                         } else {
-                            console.warn('⚠️ Database initialization had issues:', initResult.message);
+                            console.warn('⚠️ Database initialization incomplete:', initResult.message);
+                            console.warn('App will continue - you can still login with credentials manually.');
                             initResult.details.forEach(detail => console.warn(`  ${detail}`));
                         }
+                    } else {
+                        console.log('✅ Database is already initialized');
                     }
                 } catch (dbInitError) {
-                    console.warn('Could not initialize database (may not be needed):', dbInitError);
+                    console.warn('⚠️ Could not check/initialize database (may not be critical):', dbInitError);
+                    console.log('App will continue - you can still login manually if you have credentials.');
+                    // Continue anyway - user may still be able to login
                 }
 
                 const user = await supabaseAuthService.getCurrentUser();
