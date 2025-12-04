@@ -9,6 +9,9 @@ import dataMigrationService from './services/dataMigration';
 // Component Imports
 import LoginScreen from './components/LoginScreen';
 import ChangePasswordScreen from './components/ChangePasswordScreen';
+import ForgotPasswordScreen from './components/ForgotPasswordScreen';
+import ResetPasswordScreen from './components/ResetPasswordScreen';
+import ConfirmEmailScreen from './components/ConfirmEmailScreen';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -555,6 +558,24 @@ const useStore = () => {
 
 const App = () => {
   const store = useStore();
+  const [currentRoute, setCurrentRoute] = useState<string>('');
+
+  useEffect(() => {
+    // Detect current route from URL pathname
+    const updateRoute = () => {
+      const pathname = window.location.pathname;
+      setCurrentRoute(pathname);
+    };
+
+    updateRoute();
+
+    // Listen for URL changes (browser back/forward)
+    window.addEventListener('popstate', updateRoute);
+
+    return () => {
+      window.removeEventListener('popstate', updateRoute);
+    };
+  }, []);
 
   useEffect(() => {
     if (store.currentUser && !store.aiChatSession) {
@@ -584,12 +605,25 @@ const App = () => {
       </div>
     </div>;
   }
-  
+
   if (store.userForPasswordChange) {
     return <ChangePasswordScreen user={store.userForPasswordChange} onPasswordChanged={store.actions.handlePasswordChanged} onCancel={store.actions.handleCancelPasswordChange} />;
   }
 
+  // Handle special routes (not requiring user to be logged in)
   if (!store.currentUser) {
+    if (currentRoute === '/esqueci-senha') {
+      return <ForgotPasswordScreen onSendReset={store.actions.handleForgotPassword} onBackToLogin={() => window.location.href = '/'} />;
+    }
+
+    if (currentRoute === '/redefinir-senha') {
+      return <ResetPasswordScreen onResetComplete={() => window.location.href = '/'} />;
+    }
+
+    if (currentRoute === '/confirmar-email') {
+      return <ConfirmEmailScreen onConfirmComplete={() => window.location.href = '/dashboard'} onBackToLogin={() => window.location.href = '/'} />;
+    }
+
     return <LoginScreen onLogin={store.actions.handleLogin} onRequirePasswordChange={store.actions.handleRequirePasswordChange} onForgotPassword={store.actions.handleForgotPassword} />;
   }
 

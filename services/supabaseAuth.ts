@@ -63,6 +63,7 @@ export const supabaseAuthService = {
                 role,
                 client_type: clientType,
               },
+              emailRedirectTo: `${window.location.origin}/confirmar-email`,
             },
           });
           authData = response.data;
@@ -365,7 +366,7 @@ export const supabaseAuthService = {
    */
   async resetPasswordForEmail(email: string): Promise<boolean> {
     try {
-      const redirectUrl = `${window.location.origin}/reset-password`;
+      const redirectUrl = `${window.location.origin}/redefinir-senha`;
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
