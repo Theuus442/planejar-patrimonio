@@ -50,32 +50,11 @@ export const supabaseAuthService = {
       // Step 1: Create Auth user with metadata
       let authData;
       let authError;
+      let retries = 3;
 
-      try {
-        const response = await getSupabaseAuth().auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name,
-              role,
-              client_type: clientType,
-            },
-          },
-        });
-        authData = response.data;
-        authError = response.error;
-      } catch (sdkError: any) {
-        // Handle SDK-level errors (like "body stream already read")
-        // This can happen with network proxies or malformed responses
-        console.error('Supabase SDK error during sign up:', sdkError);
-
-        // Try to provide a helpful error message
-        if (sdkError.message?.includes('body stream already read')) {
-          console.warn('Supabase API connection issue - retrying...');
-          // Retry once
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          const retryResponse = await getSupabaseAuth().auth.signUp({
+      while (retries > 0) {
+        try {
+          const response = await getSupabaseAuth().auth.signUp({
             email,
             password,
             options: {
@@ -86,10 +65,30 @@ export const supabaseAuthService = {
               },
             },
           });
-          authData = retryResponse.data;
-          authError = retryResponse.error;
-        } else {
-          throw sdkError;
+          authData = response.data;
+          authError = response.error;
+
+          if (!authError || !authError.message?.includes('body stream already read')) {
+            // Success or non-retryable error
+            break;
+          }
+
+          retries--;
+          if (retries > 0) {
+            console.warn(`Supabase API connection issue - retrying (${retries} left)...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+          }
+        } catch (sdkError: any) {
+          // Handle SDK-level errors (like "body stream already read" or "Failed to fetch")
+          console.error('Supabase SDK error during sign up:', sdkError);
+
+          retries--;
+          if (retries > 0 && (sdkError.message?.includes('body stream already read') || sdkError.message?.includes('Failed to fetch'))) {
+            console.warn(`Network error - retrying (${retries} left)...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+          } else {
+            throw sdkError;
+          }
         }
       }
 
@@ -105,9 +104,9 @@ export const supabaseAuthService = {
       // Step 2: Create database user record with retry logic
       // The auth metadata is stored in Supabase Auth, but we also need it in the users table
       let user = null;
-      let retries = 3;
+      let dbRetries = 3;
 
-      while (retries > 0 && !user) {
+      while (dbRetries > 0 && !user) {
         try {
           user = await usersDB.createUser({
             id: authData.user.id,
@@ -119,8 +118,8 @@ export const supabaseAuthService = {
 
           if (user) break;
         } catch (dbError) {
-          retries--;
-          if (retries > 0) {
+          dbRetries--;
+          if (dbRetries > 0) {
             // Wait a bit before retrying
             await new Promise(resolve => setTimeout(resolve, 500));
           } else {
@@ -160,45 +159,73 @@ export const supabaseAuthService = {
     email: string,
     password: string
   ): Promise<{ user: User; session: AuthSession } | null> {
-    try {
-      // Authenticate with Supabase Auth
-      const { data, error } = await getSupabaseAuth().auth.signInWithPassword({
-        email,
-        password,
-      });
+    let retries = 3;
+    let lastError: any = null;
 
-      if (error) {
-        console.error('Sign in error:', error);
-        throw new Error('AUTH_INVALID_CREDENTIALS');
-      }
+    while (retries > 0) {
+      try {
+        // Authenticate with Supabase Auth
+        const { data, error } = await getSupabaseAuth().auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (!data.session || !data.user) {
-        throw new Error('No session returned from sign in');
-      }
+        if (error) {
+          // Check if this is a retryable network error
+          if (error.message?.includes('body stream already read') || error.message?.includes('Failed to fetch')) {
+            retries--;
+            if (retries > 0) {
+              console.warn(`Sign in network error - retrying (${retries} left)...`);
+              await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+              continue;
+            }
+          }
+          console.error('Sign in error:', error);
+          throw new Error('AUTH_INVALID_CREDENTIALS');
+        }
 
-      // Fetch user from database with related data
-      const user = await usersDB.getUser(data.user.id);
+        if (!data.session || !data.user) {
+          throw new Error('No session returned from sign in');
+        }
 
-      if (!user) {
-        throw new Error('User not found in database');
-      }
+        // Fetch user from database with related data
+        const user = await usersDB.getUser(data.user.id);
 
-      return {
-        user,
-        session: {
-          user: {
-            id: data.user.id,
-            email: data.user.email!,
-            user_metadata: data.user.user_metadata,
+        if (!user) {
+          throw new Error('User not found in database');
+        }
+
+        return {
+          user,
+          session: {
+            user: {
+              id: data.user.id,
+              email: data.user.email!,
+              user_metadata: data.user.user_metadata,
+            },
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
           },
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        },
-      };
-    } catch (error: any) {
-      console.error('Sign in failed:', error);
-      return null;
+        };
+      } catch (error: any) {
+        lastError = error;
+
+        // Check if it's a retryable network error
+        if (error.message?.includes('body stream already read') || error.message?.includes('Failed to fetch')) {
+          retries--;
+          if (retries > 0) {
+            console.warn(`Sign in network error - retrying (${retries} left)...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+            continue;
+          }
+        }
+
+        break;
+      }
     }
+
+    console.error('Sign in failed:', lastError);
+    return null;
   },
 
   /**
@@ -259,7 +286,10 @@ export const supabaseAuthService = {
       const { data, error } = await getSupabaseAuth().auth.getUser();
 
       if (error) {
-        console.error('Get user error:', error);
+        // "Auth session missing" is normal when user is not logged in - don't log this error
+        if (!error.message?.includes('Auth session missing')) {
+          console.error('Get user error:', error);
+        }
         return null;
       }
 
@@ -270,7 +300,10 @@ export const supabaseAuthService = {
       // Fetch full user from database
       return await usersDB.getUser(data.user.id);
     } catch (error) {
-      console.error('Get current user failed:', error);
+      // Suppress "Auth session missing" errors - this is expected when not logged in
+      if (error instanceof Error && !error.message?.includes('Auth session missing')) {
+        console.error('Get current user failed:', error);
+      }
       return null;
     }
   },
@@ -404,7 +437,7 @@ export const supabaseAuthService = {
     ) => void
   ): (() => void) | null {
     try {
-      const unsubscribe = getSupabaseAuth().auth.onAuthStateChange(
+      const { data: { subscription } } = getSupabaseAuth().auth.onAuthStateChange(
         async (event, session) => {
           callback(
             event as 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'USER_UPDATED',
@@ -423,7 +456,9 @@ export const supabaseAuthService = {
         }
       );
 
-      return unsubscribe?.subscription?.unsubscribe || unsubscribe;
+      return () => {
+        subscription?.unsubscribe();
+      };
     } catch (error) {
       console.error('Set up auth state listener failed:', error);
       return null;

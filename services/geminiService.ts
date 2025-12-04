@@ -5,13 +5,23 @@ import { fileToBase64 } from "../utils/fileUtils";
 // Lazy initialization for the GoogleGenAI instance to prevent crashes on startup
 // in environments where the API key is not immediately available.
 let ai: GoogleGenAI | null = null;
+let aiInitError: Error | null = null;
+
 const getAi = (): GoogleGenAI => {
-  if (!ai) {
-    // The API key must be obtained from the environment variable process.env.API_KEY.
-    // The polyfill in index.html ensures this object path exists, even if the key is empty initially.
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  if (!ai && !aiInitError) {
+    try {
+      const apiKey = process.env.API_KEY || import.meta.env.VITE_GOOGLE_GENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error('No Google Gemini API key configured');
+      }
+      ai = new GoogleGenAI({ apiKey });
+    } catch (error) {
+      aiInitError = error instanceof Error ? error : new Error(String(error));
+      console.warn('AI features disabled:', aiInitError.message);
+    }
   }
-  return ai;
+  if (aiInitError) throw aiInitError;
+  return ai!;
 };
 
 
@@ -19,18 +29,28 @@ const AI_PERSONA = `Persona: Você é um assistente de IA para uma plataforma de
 
 class AIChatSession {
     private chat: Chat;
+    private isAvailable: boolean = false;
 
     constructor() {
-        this.chat = getAi().chats.create({
-            model: 'gemini-2.5-flash',
-            config: {
-                systemInstruction: AI_PERSONA,
-                temperature: 0.5,
-            }
-        });
+        try {
+            this.chat = getAi().chats.create({
+                model: 'gemini-2.5-flash',
+                config: {
+                    systemInstruction: AI_PERSONA,
+                    temperature: 0.5,
+                }
+            });
+            this.isAvailable = true;
+        } catch (error) {
+            console.warn("AI Chat not available:", error instanceof Error ? error.message : String(error));
+            this.isAvailable = false;
+        }
     }
 
     async sendMessage(message: string): Promise<string> {
+        if (!this.isAvailable) {
+            return "Assistente de IA não está disponível. Configure a chave da API do Google Gemini para ativar este recurso.";
+        }
         try {
             const response = await this.chat.sendMessage({ message });
             return response.text;
@@ -42,7 +62,12 @@ class AIChatSession {
 }
 
 export const createAIChatSession = () => {
-    return new AIChatSession();
+    try {
+        return new AIChatSession();
+    } catch (error) {
+        console.warn("Could not create AI chat session:", error instanceof Error ? error.message : String(error));
+        return new AIChatSession(); // Return instance anyway, but it won't be available
+    }
 };
 
 export const getAIHelp = async (question: string): Promise<ChatMessage> => {
@@ -57,7 +82,7 @@ export const getAIHelp = async (question: string): Promise<ChatMessage> => {
     });
 
     const text = response.text;
-    
+
     return {
       id: Date.now().toString(),
       authorId: 'ai',
@@ -68,14 +93,14 @@ export const getAIHelp = async (question: string): Promise<ChatMessage> => {
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    console.error("Error calling Gemini API:", error);
+    console.warn("AI help not available:", error instanceof Error ? error.message : String(error));
     return {
       id: Date.now().toString(),
       authorId: 'ai',
       authorName: 'Assistente IA',
       authorAvatarUrl: '',
       authorRole: UserRole.CONSULTANT,
-      content: "Ocorreu um erro ao processar sua pergunta. Tente novamente mais tarde.",
+      content: "Assistente de IA não está disponível no momento. Configure a chave da API do Google Gemini.",
       timestamp: new Date().toISOString(),
     };
   }
@@ -94,8 +119,8 @@ export const generateAIDraft = async (prompt: string): Promise<string> => {
 
         return response.text;
     } catch (error) {
-        console.error("Error calling Gemini API for draft generation:", error);
-        return "Ocorreu um erro ao gerar o rascunho. Tente novamente.";
+        console.warn("AI draft generation not available:", error instanceof Error ? error.message : String(error));
+        return "Recurso de geração de rascunhos via IA não está disponível. Configure a chave da API do Google Gemini.";
     }
 };
 
@@ -114,7 +139,7 @@ export const analyzeDocumentWithAI = async (file: File): Promise<AIAnalysisResul
           1.  Faça um resumo conciso do propósito principal do documento.
           2.  Extraia informações chave, como nomes de pessoas, empresas, endereços de imóveis, valores monetários e cláusulas importantes.
           3.  Sugira de 3 a 5 tarefas ou próximos passos acionáveis para um consultor com base no conteúdo. As tarefas devem ser curtas e diretas.
-          
+
           Retorne a resposta EXCLUSIVAMENTE em formato JSON.
         `,
     };
@@ -147,12 +172,12 @@ export const analyzeDocumentWithAI = async (file: File): Promise<AIAnalysisResul
                 },
             }
         });
-        
+
         const jsonText = response.text.trim();
         return JSON.parse(jsonText) as AIAnalysisResult;
 
     } catch (error) {
-        console.error("Error analyzing document with Gemini:", error);
-        throw new Error("Não foi possível analisar o documento. Verifique o arquivo ou tente novamente.");
+        console.warn("Document analysis not available:", error instanceof Error ? error.message : String(error));
+        throw new Error("Análise de documentos via IA não está disponível. Configure a chave da API do Google Gemini.");
     }
 };

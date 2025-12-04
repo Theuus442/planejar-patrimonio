@@ -4,6 +4,7 @@ import { User, Project, UserRole, Notification, Task, ChatMessage, NewClientData
 // Supabase Services
 import supabaseAuthService from './services/supabaseAuth';
 import { usersDB, projectsDB, projectClientsDB, tasksDB, chatDB, activityLogsDB } from './services/supabaseDatabase';
+import dataMigrationService from './services/dataMigration';
 
 // Component Imports
 import LoginScreen from './components/LoginScreen';
@@ -56,6 +57,10 @@ const useStore = () => {
             try {
                 setIsLoading(true);
 
+                // Note: Automatic database seeding is disabled on Fly.io due to proxy constraints
+                // To create test users, use the Supabase dashboard or create them manually
+                console.log('ℹ️ Ready to authenticate. Create users in Supabase dashboard to test.');
+
                 const user = await supabaseAuthService.getCurrentUser();
                 if (user) {
                     setCurrentUser(user);
@@ -101,7 +106,9 @@ const useStore = () => {
         );
 
         return () => {
-            unsubscribe?.();
+            if (typeof unsubscribe === 'function') {
+                unsubscribe();
+            }
         };
     }, []);
 
