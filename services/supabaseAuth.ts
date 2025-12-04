@@ -81,6 +81,11 @@ export const supabaseAuthService = {
         } catch (sdkError: any) {
           // Handle SDK-level errors (like "body stream already read" or "Failed to fetch")
           console.error('Supabase SDK error during sign up:', sdkError);
+          console.error('Error details:', {
+            message: sdkError.message,
+            status: sdkError.status,
+            statusText: sdkError.statusText,
+          });
 
           retries--;
           if (retries > 0 && (sdkError.message?.includes('body stream already read') || sdkError.message?.includes('Failed to fetch'))) {
