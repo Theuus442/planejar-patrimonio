@@ -377,6 +377,63 @@ const useStore = () => {
             }
         },
 
+        handleUploadDocument: async (projectId: string, phaseId: number, file: File, description: string) => {
+            if (!currentUser) return;
+
+            try {
+                const { filesDB } = await import('./services/supabaseDatabase');
+                const documentUrl = await filesDB.uploadProjectDocument(projectId, phaseId, file);
+
+                if (documentUrl) {
+                    const doc = await documentsDB.uploadDocument({
+                        projectId,
+                        phaseId,
+                        name: description || file.name,
+                        url: documentUrl,
+                        type: 'pdf',
+                        uploadedBy: currentUser.id,
+                    });
+
+                    if (doc) {
+                        console.log('Document uploaded successfully:', doc);
+                        await reloadProjects();
+                    }
+                }
+            } catch (error) {
+                console.error('Error uploading document:', error);
+                throw error;
+            }
+        },
+
+        handleUploadAndLinkDocument: async (projectId: string, phaseId: number, file: File, onSuccess?: (documentId: string) => void) => {
+            if (!currentUser) return;
+
+            try {
+                const { filesDB } = await import('./services/supabaseDatabase');
+                const documentUrl = await filesDB.uploadProjectDocument(projectId, phaseId, file);
+
+                if (documentUrl) {
+                    const doc = await documentsDB.uploadDocument({
+                        projectId,
+                        phaseId,
+                        name: file.name,
+                        url: documentUrl,
+                        type: 'pdf',
+                        uploadedBy: currentUser.id,
+                    });
+
+                    if (doc && onSuccess) {
+                        console.log('Document uploaded and linked:', doc);
+                        onSuccess(doc.id);
+                        await reloadProjects();
+                    }
+                }
+            } catch (error) {
+                console.error('Error uploading and linking document:', error);
+                throw error;
+            }
+        },
+
         handleCreateClient: async (projectName: string, mainClientData: NewClientData, additionalClientsData: NewClientData[], contractFile: File) => {
             if (!currentUser) return;
 
