@@ -1153,7 +1153,7 @@ export const filesDB = {
 
       const { data, error } = await getSupabase()
         .storage
-        .from('project_documents')
+        .from('project-files')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false,
@@ -1167,7 +1167,7 @@ export const filesDB = {
       // Get public URL
       const { data: { publicUrl } } = getSupabase()
         .storage
-        .from('project_documents')
+        .from('project-files')
         .getPublicUrl(fileName);
 
       return publicUrl;
@@ -1183,11 +1183,11 @@ export const filesDB = {
         throw new Error('Apenas arquivos PDF são permitidos');
       }
 
-      const fileName = `${projectId}/${Date.now()}-${file.name}`;
+      const fileName = `contracts/${projectId}/${Date.now()}-${file.name}`;
 
       const { data, error } = await getSupabase()
         .storage
-        .from('project_contracts')
+        .from('project-files')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false,
@@ -1201,7 +1201,7 @@ export const filesDB = {
       // Get public URL
       const { data: { publicUrl } } = getSupabase()
         .storage
-        .from('project_contracts')
+        .from('project-files')
         .getPublicUrl(fileName);
 
       return publicUrl;
@@ -1215,7 +1215,7 @@ export const filesDB = {
     try {
       const { error } = await getSupabase()
         .storage
-        .from('project_documents')
+        .from('project-files')
         .remove([filePath]);
 
       if (error) {
@@ -1234,7 +1234,7 @@ export const filesDB = {
     try {
       const { error } = await getSupabase()
         .storage
-        .from('project_contracts')
+        .from('project-files')
         .remove([filePath]);
 
       if (error) {
