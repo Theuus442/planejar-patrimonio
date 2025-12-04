@@ -57,29 +57,9 @@ const useStore = () => {
             try {
                 setIsLoading(true);
 
-                // Initialize database if empty (first time setup)
-                // This is non-blocking - app continues even if initialization fails
-                try {
-                    const dbStatus = await dataMigrationService.getStatus();
-                    if (!dbStatus.isSeeded) {
-                        console.log('🚀 First time setup - initializing database with test data...');
-                        const initResult = await dataMigrationService.initializeDatabase();
-                        if (initResult.success) {
-                            console.log('✅ Database initialized successfully!');
-                            initResult.details.forEach(detail => console.log(`  ${detail}`));
-                        } else {
-                            console.warn('⚠️ Database initialization incomplete:', initResult.message);
-                            console.warn('App will continue - you can still login with credentials manually.');
-                            initResult.details.forEach(detail => console.warn(`  ${detail}`));
-                        }
-                    } else {
-                        console.log('✅ Database is already initialized');
-                    }
-                } catch (dbInitError) {
-                    console.warn('⚠️ Could not check/initialize database (may not be critical):', dbInitError);
-                    console.log('App will continue - you can still login manually if you have credentials.');
-                    // Continue anyway - user may still be able to login
-                }
+                // Note: Automatic database seeding is disabled on Fly.io due to proxy constraints
+                // To create test users, use the Supabase dashboard or create them manually
+                console.log('ℹ️ Ready to authenticate. Create users in Supabase dashboard to test.');
 
                 const user = await supabaseAuthService.getCurrentUser();
                 if (user) {
