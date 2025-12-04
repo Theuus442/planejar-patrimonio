@@ -635,9 +635,9 @@ const App = () => {
             }
             return <div>Dashboard não implementado para esta função.</div>;
         case 'project_detail':
-            return store.selectedProject ? 
-                <ProjectDetailView 
-                    project={store.selectedProject} 
+            return store.selectedProject ?
+                <ProjectDetailView
+                    project={store.selectedProject}
                     currentUser={store.currentUser!}
                     users={store.allUsers}
                     onBack={store.actions.handleBackToDashboard}
@@ -647,7 +647,7 @@ const App = () => {
                     onAdvancePhase={store.actions.handleAdvancePhase}
                     onUpdatePhaseChat={store.actions.handleUpdatePhaseChat}
                     initialPhaseId={store.targetPhaseId}
-                    onUploadAndLinkDocument={() => {}}
+                    onUploadAndLinkDocument={store.actions.handleUploadAndLinkDocument}
                     onChoosePostCompletionPath={() => {}}
                     onRemoveMemberFromProject={() => {}}
                     onUpdateUser={store.actions.handleUpdateUser}
