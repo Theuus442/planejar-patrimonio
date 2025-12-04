@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { NewClientData, User } from '../types';
 import Icon from './Icon';
@@ -44,7 +43,11 @@ const CreateClientScreen: React.FC<CreateClientScreenProps> = ({ onBack, onCreat
             } else if (existingEmails.has(mainClient.email.toLowerCase())) {
                 newErrors.mainClientEmail = 'Este e-mail já está em uso.';
             }
-            if (!mainClient.password?.trim()) newErrors.mainClientPassword = 'A senha provisória é obrigatória.';
+            if (!mainClient.password?.trim()) {
+                newErrors.mainClientPassword = 'A senha provisória é obrigatória.';
+            } else if (mainClient.password.length < 6) {
+                newErrors.mainClientPassword = 'A senha deve ter no mínimo 6 caracteres.';
+            }
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -70,8 +73,12 @@ const CreateClientScreen: React.FC<CreateClientScreenProps> = ({ onBack, onCreat
         } else if (existingEmails.has(currentAdditional.email.toLowerCase()) || mainClient.email === currentAdditional.email || additionalClients.some(c => c.email === currentAdditional.email)) {
             newErrors.addClientEmail = 'E-mail já está em uso neste projeto.';
         }
-        if (!currentAdditional.password?.trim()) newErrors.addClientPassword = 'A senha provisória é obrigatória.';
-        
+        if (!currentAdditional.password?.trim()) {
+            newErrors.addClientPassword = 'A senha provisória é obrigatória.';
+        } else if (currentAdditional.password.length < 6) {
+            newErrors.addClientPassword = 'A senha deve ter no mínimo 6 caracteres.';
+        }
+
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
             return;

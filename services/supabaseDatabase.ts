@@ -712,7 +712,7 @@ export const phaseDataDB = {
       .from('phase_1_data')
       .select('*')
       .eq('project_id', projectId)
-      .single();
+      .maybeSingle();
     
     if (error && error.code !== 'PGRST116') {
       console.error('Error fetching phase 1 data:', error);
@@ -748,7 +748,7 @@ export const phaseDataDB = {
       .from('phase_2_data')
       .select('*')
       .eq('project_id', projectId)
-      .single();
+      .maybeSingle();
     
     if (error && error.code !== 'PGRST116') {
       console.error('Error fetching phase 2 data:', error);
@@ -771,7 +771,7 @@ export const phaseDataDB = {
       .from('phase_2_data')
       .select('id')
       .eq('project_id', projectId)
-      .single();
+      .maybeSingle();
     
     if (existing) {
       phase2Id = existing.id;
@@ -808,7 +808,7 @@ export const phaseDataDB = {
       .from('phase_3_data')
       .select('*')
       .eq('project_id', projectId)
-      .single();
+      .maybeSingle();
     
     if (error && error.code !== 'PGRST116') {
       console.error('Error fetching phase 3 data:', error);
