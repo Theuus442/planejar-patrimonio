@@ -9,6 +9,9 @@ import dataMigrationService from './services/dataMigration';
 // Component Imports
 import LoginScreen from './components/LoginScreen';
 import ChangePasswordScreen from './components/ChangePasswordScreen';
+import ForgotPasswordScreen from './components/ForgotPasswordScreen';
+import ResetPasswordScreen from './components/ResetPasswordScreen';
+import ConfirmEmailScreen from './components/ConfirmEmailScreen';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
