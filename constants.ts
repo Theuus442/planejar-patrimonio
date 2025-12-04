@@ -11,7 +11,11 @@ import { User, Project, Phase, Task, UserRole, CompanyData, PartnerDataForPhase2
 // See: services/dataMigration.ts
 // ============================================================================
 
-// FIX: Export 'getInitialProjectPhases' so it can be used by other modules.
+/**
+ * Template for initial project phases
+ * Returns a blank phase structure for new projects.
+ * Actual project data is loaded from Supabase.
+ */
 export const getInitialProjectPhases = (): Phase[] => {
     return [
         { id: 1, title: 'Diagnóstico e Planejamento', description: 'Coleta de informações iniciais e definição dos objetivos da holding.', status: 'in-progress', tasks: [], documents: [], phase1Data: { isFormCompleted: false, meetingScheduled: false }},
