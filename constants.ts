@@ -1,80 +1,15 @@
 import { User, Project, Phase, Task, UserRole, CompanyData, PartnerDataForPhase2, Asset, ITBIProcessData, RegistrationProcessData, QuotaTransferProcess, SupportRequest, Document, ChatMessage, LogEntry, UserDocument, PartnerQualificationData } from './types';
 
-export const INITIAL_USERS: User[] = [
-  {
-    id: 'admin-user-01',
-    name: 'Administrador',
-    email: 'admin@planejar.com',
-    password: 'admin123',
-    role: UserRole.ADMINISTRATOR,
-    requiresPasswordChange: false,
-  },
-  {
-    id: 'consultant-diego-01',
-    name: 'Diego Garcia',
-    email: 'diego.garcia@grupociatos.com.br',
-    password: '250500',
-    role: UserRole.CONSULTANT,
-    requiresPasswordChange: false,
-  },
-  {
-    id: 'client-joao-01',
-    name: 'João da Silva Completo',
-    email: 'joao.completo@email.com',
-    password: '123',
-    role: UserRole.CLIENT,
-    clientType: 'partner',
-    requiresPasswordChange: false,
-    qualificationData: {
-        cpf: '111.222.333-44',
-        rg: '12.345.678-9',
-        maritalStatus: 'casado',
-        propertyRegime: 'comunhao_parcial',
-        birthDate: '1965-05-20',
-        nationality: 'Brasileiro',
-        address: 'Rua das Flores, 123, São Paulo, SP',
-        phone: '11987654321',
-        declaresIncomeTax: true,
-    },
-    documents: [
-      { id: 'userdoc-joao-1', name: 'CNH_Joao.pdf', category: 'identity', url: '#', uploadedAt: '2023-10-01T10:00:00Z'},
-      { id: 'userdoc-joao-2', name: 'Comprovante_Endereco_Joao.pdf', category: 'address', url: '#', uploadedAt: '2023-10-01T10:01:00Z'},
-      { id: 'userdoc-joao-3', name: 'Certidao_Casamento_Joao.pdf', category: 'marriage', url: '#', uploadedAt: '2023-10-01T10:02:00Z'},
-      { id: 'userdoc-joao-4', name: 'IRPF_2023_Joao.pdf', category: 'tax_return', url: '#', uploadedAt: '2023-10-01T10:03:00Z'},
-    ]
-  },
-  {
-    id: 'client-maria-01',
-    name: 'Maria Souza Completo',
-    email: 'maria.completo@email.com',
-    password: '123',
-    role: UserRole.CLIENT,
-    clientType: 'partner',
-    requiresPasswordChange: false,
-    qualificationData: {
-        cpf: '222.333.444-55',
-        rg: '23.456.789-0',
-        maritalStatus: 'casado',
-        propertyRegime: 'comunhao_parcial',
-        birthDate: '1968-08-15',
-        nationality: 'Brasileira',
-        address: 'Rua das Flores, 123, São Paulo, SP',
-        phone: '11987654322',
-        declaresIncomeTax: true,
-    },
-     documents: [
-      { id: 'userdoc-maria-1', name: 'RG_Maria.pdf', category: 'identity', url: '#', uploadedAt: '2023-10-01T11:00:00Z'},
-    ]
-  },
-  {
-    id: 'auxiliary-servicos-01',
-    name: 'Gisele Pego',
-    email: 'servicos@grupociatos.com.br',
-    password: '123456',
-    role: UserRole.AUXILIARY,
-    requiresPasswordChange: false,
-  }
-];
+// ============================================================================
+// NOTE: All user and project data now comes from Supabase
+// ============================================================================
+// INITIAL_USERS and INITIAL_PROJECTS have been removed.
+// Data is loaded dynamically from the database on app startup.
+//
+// For development/testing, use dataMigrationService.initializeDatabase()
+// to seed the database with test users and projects.
+// See: services/dataMigration.ts
+// ============================================================================
 
 // FIX: Export 'getInitialProjectPhases' so it can be used by other modules.
 export const getInitialProjectPhases = (): Phase[] => {
