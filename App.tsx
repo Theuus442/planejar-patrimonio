@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Project, UserRole, Notification, Task, ChatMessage, NewClientData, PartnerDataForPhase2, Document, ITBIProcessData, Phase6RegistrationData, RegistrationProcessData, Phase5ITBIData, UserDocument, UserDocumentCategory, LogEntry, Asset } from './types';
-import { INITIAL_USERS, INITIAL_PROJECTS, getInitialProjectPhases } from './constants';
+import { getInitialProjectPhases } from './constants';
+
+// Supabase Services
+import supabaseAuthService from './services/supabaseAuth';
+import dataMigrationService from './services/dataMigration';
+import { usersDB, projectsDB, projectClientsDB, tasksDB, chatDB, activityLogsDB, phaseDataDB, assetsDB } from './services/supabaseDatabase';
 
 // Component Imports
 import LoginScreen from './components/LoginScreen';
@@ -15,7 +20,7 @@ import CreateUserScreen from './components/CreateUserScreen';
 import CreateClientScreen from './components/CreateClientScreen';
 import ManageUsersScreen from './components/ManageUsersScreen';
 import MyDataScreen from './components/MyDataScreen';
-import MyTasksScreen from './components/MyTasksScreen'; // NEW
+import MyTasksScreen from './components/MyTasksScreen';
 import ProjectChat from './components/ProjectChat';
 import DocumentsView from './components/DocumentsView';
 import ProjectsDocumentsView from './components/ProjectsDocumentsView';
@@ -24,30 +29,144 @@ import { createAIChatSession } from './services/geminiService';
 import Icon from './components/Icon';
 import SupportDashboard from './components/SupportDashboard';
 
-// A state management hook architected for in-memory data
+// ============================================================================
+// STATE MANAGEMENT HOOK (Refactored for Supabase)
+// ============================================================================
+
 const useStore = () => {
-    const [allUsers, setAllUsers] = useState<User[]>(INITIAL_USERS);
-    const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+    // Authentication State
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [userForPasswordChange, setUserForPasswordChange] = useState<User | null>(null);
+    
+    // Data State (loaded from Supabase)
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [projects, setProjects] = useState<Project[]>([]);
+    
+    // UI State
     const [currentView, setCurrentView] = useState<string>('dashboard');
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [activeChat, setActiveChat] = useState<{ projectId: string; chatType: 'client' | 'internal' } | null>(null);
     const [targetPhaseId, setTargetPhaseId] = useState<number | null>(null);
     
+    // AI Chat State
     const [isAiChatOpen, setIsAiChatOpen] = useState(false);
     const [aiChatMessages, setAiChatMessages] = useState<ChatMessage[]>([]);
     const [aiChatSession, setAiChatSession] = useState<ReturnType<typeof createAIChatSession> | null>(null);
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-
+    // ========================================================================
+    // INITIALIZATION: Set up auth state listener and load data
+    // ========================================================================
+    
     useEffect(() => {
-        // Simulate loading end, as data is now synchronous
-        setIsLoading(false);
+        const initializeAuth = async () => {
+            try {
+                setIsLoading(true);
+
+                // Check if database needs initialization
+                const dbStatus = await dataMigrationService.getStatus();
+                if (!dbStatus.isSeeded) {
+                    console.log('🚀 First time setup - initializing database...');
+                    const result = await dataMigrationService.initializeDatabase();
+                    if (!result.success) {
+                        console.error('Database initialization failed:', result.message);
+                    }
+                }
+
+                // Try to restore current session
+                const user = await supabaseAuthService.getCurrentUser();
+                if (user) {
+                    setCurrentUser(user);
+                    // Load data for authenticated user
+                    await loadUserData(user.id);
+                } else {
+                    setCurrentUser(null);
+                    setAllUsers([]);
+                    setProjects([]);
+                }
+            } catch (error) {
+                console.error('Auth initialization error:', error);
+                setCurrentUser(null);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        initializeAuth();
+
+        // Listen for auth state changes (sign in, sign out, etc.)
+        const unsubscribe = supabaseAuthService.onAuthStateChange(
+            async (event, session) => {
+                if (event === 'SIGNED_IN' && session) {
+                    const user = await supabaseAuthService.getCurrentUser();
+                    if (user) {
+                        setCurrentUser(user);
+                        await loadUserData(user.id);
+                    }
+                } else if (event === 'SIGNED_OUT') {
+                    setCurrentUser(null);
+                    setAllUsers([]);
+                    setProjects([]);
+                    setCurrentView('dashboard');
+                }
+            }
+        );
+
+        return () => {
+            unsubscribe?.();
+        };
     }, []);
+
+    // ========================================================================
+    // DATA LOADING FUNCTIONS
+    // ========================================================================
+
+    const loadUserData = useCallback(async (userId: string) => {
+        try {
+            // Load all users (for consultants/admins)
+            const users = await usersDB.listUsers();
+            setAllUsers(users);
+
+            // Load projects based on role
+            const user = users.find(u => u.id === userId);
+            if (!user) return;
+
+            let userProjects: Project[] = [];
+            if (user.role === UserRole.CLIENT) {
+                userProjects = await projectsDB.listProjectsByClient(userId);
+            } else {
+                userProjects = await projectsDB.listProjects();
+            }
+
+            setProjects(userProjects);
+        } catch (error) {
+            console.error('Error loading user data:', error);
+        }
+    }, []);
+
+    const reloadProjects = useCallback(async () => {
+        try {
+            if (!currentUser) return;
+            
+            let userProjects: Project[] = [];
+            if (currentUser.role === UserRole.CLIENT) {
+                userProjects = await projectsDB.listProjectsByClient(currentUser.id);
+            } else {
+                userProjects = await projectsDB.listProjects();
+            }
+            
+            setProjects(userProjects);
+        } catch (error) {
+            console.error('Error reloading projects:', error);
+        }
+    }, [currentUser]);
+
+    // ========================================================================
+    // DERIVED STATE
+    // ========================================================================
 
     const selectedProject = React.useMemo(() => {
         return projects.find(p => p.id === selectedProjectId) || null;
@@ -60,7 +179,7 @@ const useStore = () => {
                 setSelectedProjectId(userProject.id);
             }
         } else if (currentUser && !selectedProjectId) {
-            setSelectedProjectId(null); 
+            setSelectedProjectId(null);
             setCurrentView('dashboard');
         }
     }, [currentUser, projects, selectedProjectId]);
@@ -83,71 +202,59 @@ const useStore = () => {
 
         return true;
     };
-    
+
     const availableClients = React.useMemo(() => {
         const allProjectClientIds = new Set(projects.flatMap(p => p.clientIds));
         return allUsers.filter(u => u.role === UserRole.CLIENT && !allProjectClientIds.has(u.id));
     }, [projects, allUsers]);
 
+    // ========================================================================
+    // ACTIONS (Now using Supabase APIs)
+    // ========================================================================
+
     const actions = {
+        // ====== AUTHENTICATION ======
+        
         handleLogin: async (email: string, password: string) => {
-            const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-
-            if (!user) {
-              throw new Error('AUTH_INVALID_CREDENTIALS');
-            }
+            const result = await supabaseAuthService.signInWithEmail(email, password);
             
-            if (user.requiresPasswordChange) {
-              const err = new Error('PASSWORD_CHANGE_REQUIRED');
-              (err as any).user = user;
-              throw err;
+            if (!result) {
+                throw new Error('AUTH_INVALID_CREDENTIALS');
             }
 
-            setCurrentUser(user);
+            setCurrentUser(result.user);
+            await loadUserData(result.user.id);
         },
+
         handleForgotPassword: async (email: string) => {
-             const userExists = allUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
-            if (userExists) {
-                console.log(`(Mock) Password reset for ${email}`);
-            }
-            return Promise.resolve();
+            return await supabaseAuthService.resetPasswordForEmail(email);
         },
-        addLogEntry: (projectId: string, actorId: string, action: string) => {
-            const actor = allUsers.find(u => u.id === actorId);
-            const actorName = actor ? actor.name : (actorId === 'system' ? 'Sistema' : 'Desconhecido');
-            
-            const projectToUpdate = projects.find(p => p.id === projectId);
-            if (!projectToUpdate) return;
 
-            const newLogEntry: LogEntry = {
-                id: `log-${Date.now()}-${Math.random()}`,
-                actorId,
-                actorName,
-                action,
-                timestamp: new Date().toISOString(),
-            };
-            
-            const updatedLog = [newLogEntry, ...(projectToUpdate.activityLog || [])];
-            setProjects(prev => prev.map(p => p.id === projectId ? { ...p, activityLog: updatedLog } : p));
-        },
-        handleLogout: () => {
+        handleLogout: async () => {
+            await supabaseAuthService.signOut();
             setCurrentUser(null);
             setSelectedProjectId(null);
             setTargetPhaseId(null);
         },
+
         handleRequirePasswordChange: (user: User) => setUserForPasswordChange(user),
         handleCancelPasswordChange: () => setUserForPasswordChange(null),
-        handlePasswordChanged: (userId: string, newPassword: string) => {
-            const userToUpdate = allUsers.find(u => u.id === userId);
-            if (!userToUpdate) return;
-            
-            const updatedUser = { ...userToUpdate, password: newPassword, requiresPasswordChange: false };
 
-            setAllUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+        handlePasswordChanged: async (userId: string, newPassword: string) => {
+            const success = await supabaseAuthService.updatePassword(newPassword);
             
-            setCurrentUser(updatedUser);
+            if (success && currentUser) {
+                const updated = await usersDB.getUser(currentUser.id);
+                if (updated) {
+                    setCurrentUser(updated);
+                }
+            }
+            
             setUserForPasswordChange(null);
         },
+
+        // ====== NAVIGATION ======
+        
         handleNavigate: (view: string) => {
             if (view !== 'project_detail' && view !== 'project_documents') {
                 setTargetPhaseId(null);
@@ -158,155 +265,98 @@ const useStore = () => {
             setCurrentView(view);
             setIsSidebarOpen(false);
         },
+
         handleBackToDashboard: () => {
             setSelectedProjectId(null);
             setTargetPhaseId(null);
             setCurrentView('dashboard');
         },
+
         handleSelectProject: (projectId: string) => {
             setSelectedProjectId(projectId);
             setTargetPhaseId(null);
             setCurrentView('project_detail');
         },
-         handleSelectProjectForDocuments: (projectId: string) => {
+
+        handleSelectProjectForDocuments: (projectId: string) => {
             setSelectedProjectId(projectId);
             setCurrentView('project_documents');
         },
-        handleUpdateProject: (
-            projectId: string,
-            data: Partial<Project>
-        ) => {
+
+        // ====== PROJECT MANAGEMENT ======
+        
+        handleUpdateProject: async (projectId: string, data: Partial<Project>) => {
             const oldProject = projects.find(p => p.id === projectId);
             if (!oldProject) return;
 
+            // Log phase change
             if (data.currentPhaseId && data.currentPhaseId !== oldProject.currentPhaseId && currentUser) {
-                const newPhase = oldProject.phases.find(p => p.id === data.currentPhaseId);
-                actions.addLogEntry(projectId, currentUser.id, `avançou o projeto para a Fase ${data.currentPhaseId}: ${newPhase?.title}.`);
+                await activityLogsDB.addLogEntry(projectId, currentUser.id, `avançou o projeto para a Fase ${data.currentPhaseId}.`);
             }
 
-            setProjects(prev =>
-                prev.map(p =>
-                    p.id === projectId ? { ...p, ...data } : p
-                )
-            );
-        },
-        handleCreateTask: (projectId: string, phaseId: number, description: string, assigneeId?: string) => {
-             setProjects(prev => prev.map(p => {
-                if (p.id === projectId) {
-                    const newPhases = p.phases.map(ph => {
-                        if (ph.id === phaseId) {
-                            const newTask: Task = {
-                                id: `task-${Date.now()}`,
-                                description,
-                                phaseId,
-                                status: 'pending',
-                                assigneeId: assigneeId || currentUser!.id,
-                                createdBy: currentUser!.id,
-                                createdAt: new Date().toISOString(),
-                            };
-                            return { ...ph, tasks: [...ph.tasks, newTask] };
-                        }
-                        return ph;
-                    });
-                    return { ...p, phases: newPhases };
-                }
-                return p;
-            }));
-        },
-        handleAdvancePhase: (projectId: string, phaseId: number) => {
-            setProjects(prev => prev.map(p => {
-                if (p.id === projectId && p.currentPhaseId === phaseId) {
-                    const nextPhaseId = phaseId + 1;
-                    const updatedPhases = p.phases.map(ph => {
-                        if (ph.id === phaseId) return { ...ph, status: 'completed' as const };
-                        if (ph.id === nextPhaseId) return { ...ph, status: 'in-progress' as const };
-                        return ph;
-                    });
-                    return { ...p, currentPhaseId: nextPhaseId, phases: updatedPhases };
-                }
-                return p;
-            }));
-             actions.addLogEntry(projectId, currentUser!.id, `concluiu e avançou a Fase ${phaseId}.`);
-        },
-        handleUpdatePhaseChat: (projectId: string, phaseId: number, content: string) => {
-            if (!currentUser) return;
-            const newMessage: ChatMessage = {
-                id: `msg-${Date.now()}`,
-                authorId: currentUser.id,
-                authorName: currentUser.name,
-                authorAvatarUrl: currentUser.avatarUrl,
-                authorRole: currentUser.role,
-                content: content,
-                timestamp: new Date().toISOString(),
-            };
-            setProjects(prev => prev.map(p => {
-                if (p.id === projectId) {
-                    const updatedPhases = p.phases.map(ph => {
-                        if (ph.id === phaseId) {
-                            const phaseDataKey = `phase${phaseId}Data` as keyof typeof ph;
-                            const phaseData = (ph as any)[phaseDataKey];
-                            if(phaseData && phaseData.discussion) {
-                                const updatedPhaseData = { ...phaseData, discussion: [...phaseData.discussion, newMessage] };
-                                return { ...ph, [phaseDataKey]: updatedPhaseData };
-                            }
-                        }
-                        return ph;
-                    });
-                    return { ...p, phases: updatedPhases };
-                }
-                return p;
-            }));
-        },
-        handleUpdateUser: (userId: string, data: Partial<User>) => {
-            setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } : u));
-             if (currentUser?.id === userId) {
-                setCurrentUser(prev => prev ? { ...prev, ...data } : null);
+            // Update in database
+            const updated = await projectsDB.updateProject(projectId, data);
+            if (updated) {
+                await reloadProjects();
             }
         },
-        handleCreateClient: (projectName: string, mainClientData: NewClientData, additionalClientsData: NewClientData[], contractFile: File) => {
-            // Create users
-            const allNewClientsData = [mainClientData, ...additionalClientsData];
-            const newUsers: User[] = allNewClientsData.map(clientData => ({
-                id: `user-${Date.now()}-${Math.random()}`,
-                name: clientData.name,
-                email: clientData.email,
-                password: clientData.password,
-                role: UserRole.CLIENT,
-                clientType: clientData.clientType,
-                requiresPasswordChange: true,
-            }));
+
+        handleUpdateUser: async (userId: string, data: Partial<User>) => {
+            const updated = await usersDB.updateUser(userId, data);
             
-            setAllUsers(prev => [...prev, ...newUsers]);
-            
-            // Create project
-            const newProject: Project = {
-                id: `proj-${Date.now()}`,
-                name: projectName,
-                status: 'in-progress',
-                currentPhaseId: 1,
-                consultantId: currentUser!.id,
-                clientIds: newUsers.map(u => u.id),
-                phases: getInitialProjectPhases(),
-                internalChat: [],
-                clientChat: [],
-                activityLog: [],
-            };
-            
-            setProjects(prev => [...prev, newProject]);
-            actions.addLogEntry(newProject.id, currentUser!.id, 'criou o projeto.');
-            
-            // Go to dashboard to see the new project
-            setCurrentView('dashboard');
+            if (updated) {
+                // Update local state
+                setAllUsers(prev => prev.map(u => u.id === userId ? updated : u));
+                
+                if (currentUser?.id === userId) {
+                    setCurrentUser(updated);
+                }
+            }
         },
-         handleOpenChat: (chatType: 'client' | 'internal') => {
+
+        handleCreateTask: async (projectId: string, phaseId: number, description: string, assigneeId?: string) => {
+            if (!currentUser) return;
+
+            const task = await tasksDB.createTask({
+                projectId,
+                phaseId,
+                description,
+                createdBy: currentUser.id,
+                assigneeId: assigneeId || currentUser.id,
+            });
+
+            if (task) {
+                // Optionally reload projects to get updated tasks
+                await reloadProjects();
+            }
+        },
+
+        handleAdvancePhase: async (projectId: string, phaseId: number) => {
+            if (!currentUser) return;
+
+            const nextPhaseId = phaseId + 1;
+            const updated = await projectsDB.updateProject(projectId, {
+                currentPhaseId: nextPhaseId,
+            } as any);
+
+            if (updated) {
+                await activityLogsDB.addLogEntry(projectId, currentUser.id, `concluiu e avançou a Fase ${phaseId}.`);
+                await reloadProjects();
+            }
+        },
+
+        // ====== CHAT ======
+        
+        handleOpenChat: (chatType: 'client' | 'internal') => {
             if (selectedProject) {
                 setActiveChat({ projectId: selectedProject.id, chatType });
             }
         },
-        handleSendProjectMessage: (content: string) => {
+
+        handleSendProjectMessage: async (content: string) => {
             if (!activeChat || !selectedProject || !currentUser) return;
 
-            const newMessage: ChatMessage = {
+            const message: ChatMessage = {
                 id: `msg-${Date.now()}`,
                 authorId: currentUser.id,
                 authorName: currentUser.name,
@@ -315,21 +365,86 @@ const useStore = () => {
                 content,
                 timestamp: new Date().toISOString(),
             };
-            
-            setProjects(prev => prev.map(p => {
-                if (p.id === selectedProject.id) {
-                    const chatHistory = activeChat.chatType === 'client' ? p.clientChat : p.internalChat;
-                    const updatedChat = [...chatHistory, newMessage];
-                    return activeChat.chatType === 'client' 
-                        ? { ...p, clientChat: updatedChat }
-                        : { ...p, internalChat: updatedChat };
-                }
-                return p;
-            }));
+
+            const sent = await chatDB.sendMessage(selectedProject.id, activeChat.chatType, message);
+            if (sent) {
+                // Reload project to get updated chat
+                await reloadProjects();
+            }
         },
+
+        handleUpdatePhaseChat: async (projectId: string, phaseId: number, content: string) => {
+            if (!currentUser) return;
+
+            const message: ChatMessage = {
+                id: `msg-${Date.now()}`,
+                authorId: currentUser.id,
+                authorName: currentUser.name,
+                authorAvatarUrl: currentUser.avatarUrl,
+                authorRole: currentUser.role,
+                content,
+                timestamp: new Date().toISOString(),
+            };
+
+            const sent = await chatDB.sendMessage(projectId, 'internal', message);
+            if (sent) {
+                await reloadProjects();
+            }
+        },
+
+        // ====== CLIENT & PROJECT CREATION ======
+        
+        handleCreateClient: async (projectName: string, mainClientData: NewClientData, additionalClientsData: NewClientData[], contractFile: File) => {
+            if (!currentUser) return;
+
+            try {
+                const allNewClientsData = [mainClientData, ...additionalClientsData];
+                const createdUserIds: string[] = [];
+
+                // Create users via Auth
+                for (const clientData of allNewClientsData) {
+                    const result = await supabaseAuthService.signUpWithEmail(
+                        clientData.email,
+                        clientData.password || 'TempPassword123!',
+                        clientData.name,
+                        UserRole.CLIENT,
+                        clientData.clientType
+                    );
+
+                    if (result) {
+                        createdUserIds.push(result.user.id);
+                    }
+                }
+
+                // Create project
+                const project = await projectsDB.createProject({
+                    name: projectName,
+                    consultantId: currentUser.id,
+                } as any);
+
+                if (project) {
+                    // Add clients to project
+                    for (const clientId of createdUserIds) {
+                        await projectClientsDB.addClientToProject(project.id, clientId);
+                    }
+
+                    // Log creation
+                    await activityLogsDB.addLogEntry(project.id, currentUser.id, 'criou o projeto.');
+
+                    // Reload data
+                    await reloadProjects();
+                    setCurrentView('dashboard');
+                }
+            } catch (error) {
+                console.error('Error creating client and project:', error);
+            }
+        },
+
+        // ====== AI ======
+        
         handleAiSendMessage: async (content: string) => {
             if (!currentUser || !aiChatSession) return;
-            
+
             const userMessage: ChatMessage = {
                 id: `msg-ai-${Date.now()}`,
                 authorId: currentUser.id,
@@ -354,7 +469,7 @@ const useStore = () => {
                 };
                 setAiChatMessages(prev => [...prev, aiResponse]);
             } catch (error) {
-                 const errorResponse: ChatMessage = {
+                const errorResponse: ChatMessage = {
                     id: `msg-ai-err-${Date.now()}`,
                     authorId: 'ai',
                     authorName: 'Assistente IA',
@@ -377,9 +492,13 @@ const useStore = () => {
         actions, setCurrentUser, setUserForPasswordChange, setCurrentView,
         setSelectedProjectId, setNotifications, setActiveChat, setTargetPhaseId,
         setIsAiChatOpen, setAiChatMessages, setAiChatSession, setIsAiLoading,
-        isPartnerDataComplete, setProjects, setAllUsers, setIsSidebarOpen
+        isPartnerDataComplete, setProjects, setAllUsers, setIsSidebarOpen, reloadProjects
     };
 };
+
+// ============================================================================
+// MAIN APP COMPONENT
+// ============================================================================
 
 const App = () => {
   const store = useStore();
@@ -415,7 +534,12 @@ const App = () => {
   }, [store.currentUser]);
 
   if (store.isLoading) {
-    return <div>Carregando...</div>;
+    return <div className="flex items-center justify-center h-screen bg-gray-100">
+      <div className="text-center">
+        <p className="text-xl text-gray-700 mb-4">Carregando...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto"></div>
+      </div>
+    </div>;
   }
   
   if (store.userForPasswordChange) {
@@ -447,7 +571,10 @@ const App = () => {
                             currentUser={store.currentUser}
                             onProjectClick={store.actions.handleSelectProject} 
                             onNavigateToCreate={() => store.actions.handleNavigate('create_client')}
-                            onDeleteProject={(id) => store.setProjects(p => p.filter(proj => proj.id !== id))}
+                            onDeleteProject={(id) => {
+                                projectsDB.deleteProject(id);
+                                store.reloadProjects();
+                            }}
                         />;
             }
              if (store.currentUser?.role === UserRole.AUXILIARY) {
@@ -500,11 +627,13 @@ const App = () => {
                         projects={store.projects}
                         currentUser={store.currentUser}
                         onBack={store.actions.handleBackToDashboard} 
-                        onDeleteUser={(id) => store.setAllUsers(u => u.filter(user => user.id !== id))}
+                        onDeleteUser={(id) => {
+                            usersDB.deleteUser(id);
+                            setAllUsers(u => u.filter(user => user.id !== id));
+                        }}
                         onNavigateToCreate={(role) => store.actions.handleNavigate('create_user')}
                         onResetPassword={(id) => {
-                            store.setAllUsers(users => users.map(u => u.id === id ? { ...u, requiresPasswordChange: true, password: 'resetpassword' } : u));
-                            alert('Senha resetada para "resetpassword". O usuário deverá alterá-la no próximo login.');
+                            alert('A funcionalidade de reset de senha está em desenvolvimento.');
                         }}
                     />;
         case 'my_tasks':
