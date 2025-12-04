@@ -66,16 +66,6 @@ const useStore = () => {
             try {
                 setIsLoading(true);
 
-                // Check if database needs initialization
-                const dbStatus = await dataMigrationService.getStatus();
-                if (!dbStatus.isSeeded) {
-                    console.log('🚀 First time setup - initializing database...');
-                    const result = await dataMigrationService.initializeDatabase();
-                    if (!result.success) {
-                        console.error('Database initialization failed:', result.message);
-                    }
-                }
-
                 // Try to restore current session
                 const user = await supabaseAuthService.getCurrentUser();
                 if (user) {
