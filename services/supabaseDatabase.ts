@@ -1220,7 +1220,8 @@ export const filesDB = {
         throw new Error('Apenas arquivos PDF são permitidos');
       }
 
-      const fileName = `contracts/${projectId}/${Date.now()}-${file.name}`;
+      const cleanedFileName = cleanFileName(file.name);
+      const fileName = `contracts/${projectId}/${Date.now()}-${cleanedFileName}`;
 
       const { data, error } = await getSupabase()
         .storage
