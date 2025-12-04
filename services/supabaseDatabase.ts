@@ -1,4 +1,5 @@
 import { getSupabaseClient } from './supabaseService';
+import { getInitialProjectPhases } from '../constants';
 import {
   User,
   Project,
