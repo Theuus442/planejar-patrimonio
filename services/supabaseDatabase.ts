@@ -160,12 +160,15 @@ export const usersDB = {
       .select('*')
       .eq('user_id', userId)
       .single();
-    
+
     if (error) {
-      console.error('Error fetching qualification data:', error);
+      // Suppress 404 errors (no qualification data exists yet) - this is normal for new users
+      if (error.code !== 'PGRST116') {
+        console.warn('Error fetching qualification data:', error.message || error);
+      }
       return null;
     }
-    
+
     return mapDatabaseQualificationToAppQualification(data);
   },
 };
