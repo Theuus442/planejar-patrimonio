@@ -328,6 +328,9 @@ const useStore = () => {
                 setProjects(prev => prev.map(p =>
                     p.id === projectId ? oldProject : p
                 ));
+                showToast('Erro ao salvar dados. Tente novamente.', 'error');
+            } else {
+                showToast('Dados salvos com sucesso!', 'success');
             }
         },
 
