@@ -857,31 +857,33 @@ export const phaseDataDB = {
 
   async updatePhase1Data(projectId: string, phaseData: Partial<Phase1Data>): Promise<boolean> {
     try {
+      // Build the update object with only the fields that exist in the database
+      const updateData: any = {
+        project_id: projectId,
+      };
+
+      // Add fields only if they are defined
+      if (phaseData.diagnosticSummary !== undefined) updateData.diagnostic_summary = phaseData.diagnosticSummary;
+      if (phaseData.objective !== undefined) updateData.objectives = phaseData.objective;
+      else if (phaseData.objectives !== undefined) updateData.objectives = phaseData.objectives;
+      if (phaseData.familyComposition !== undefined) updateData.family_composition = phaseData.familyComposition;
+      if (phaseData.mainAssets !== undefined) updateData.main_assets = phaseData.mainAssets;
+      if (phaseData.partners !== undefined) updateData.partners = phaseData.partners;
+      if (phaseData.existingCompanies !== undefined) updateData.existing_companies = phaseData.existingCompanies;
+      if (phaseData.meetingLink !== undefined) updateData.meeting_link = phaseData.meetingLink;
+
+      console.log('Upserting phase 1 data:', { projectId, dataBeingSet: updateData });
+
       const { error } = await getSupabase()
         .from('phase_1_data')
-        .upsert([{
-          project_id: projectId,
-          diagnostic_summary: phaseData.diagnosticSummary,
-          objectives: phaseData.objectives || phaseData.objective,
-          family_composition: phaseData.familyComposition,
-          main_assets: phaseData.mainAssets,
-          partners: phaseData.partners,
-          existing_companies: phaseData.existingCompanies,
-          meeting_link: phaseData.meetingLink,
-          is_form_completed: phaseData.isFormCompleted,
-          meeting_scheduled: phaseData.meetingScheduled,
-          meeting_date_time: phaseData.meetingDateTime,
-          consultant_checklist: phaseData.consultantChecklist,
-          meeting_minutes: phaseData.meetingMinutes,
-        }], {
-          onConflict: 'project_id'
-        });
+        .upsert([updateData]);
 
       if (error) {
         console.error('Error updating phase 1 data:', {
           code: error.code,
           message: error.message,
           details: error.details,
+          hint: error.hint,
         });
         return false;
       }
@@ -891,7 +893,7 @@ export const phaseDataDB = {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error('Error updating phase 1 data:', {
         message: errorMessage,
-        error: err,
+        stack: err?.stack,
       });
       return false;
     }
