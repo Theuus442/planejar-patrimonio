@@ -856,30 +856,45 @@ export const phaseDataDB = {
   },
 
   async updatePhase1Data(projectId: string, phaseData: Partial<Phase1Data>): Promise<boolean> {
-    const { error } = await getSupabase()
-      .from('phase_1_data')
-      .upsert([{
-        project_id: projectId,
-        diagnostic_summary: phaseData.diagnosticSummary,
-        objectives: phaseData.objectives || phaseData.objective,
-        family_composition: phaseData.familyComposition,
-        main_assets: phaseData.mainAssets,
-        partners: phaseData.partners,
-        existing_companies: phaseData.existingCompanies,
-        meeting_link: phaseData.meetingLink,
-        is_form_completed: phaseData.isFormCompleted,
-        meeting_scheduled: phaseData.meetingScheduled,
-        meeting_date_time: phaseData.meetingDateTime,
-        consultant_checklist: phaseData.consultantChecklist,
-        meeting_minutes: phaseData.meetingMinutes,
-      }])
-      .eq('project_id', projectId);
+    try {
+      const { error } = await getSupabase()
+        .from('phase_1_data')
+        .upsert([{
+          project_id: projectId,
+          diagnostic_summary: phaseData.diagnosticSummary,
+          objectives: phaseData.objectives || phaseData.objective,
+          family_composition: phaseData.familyComposition,
+          main_assets: phaseData.mainAssets,
+          partners: phaseData.partners,
+          existing_companies: phaseData.existingCompanies,
+          meeting_link: phaseData.meetingLink,
+          is_form_completed: phaseData.isFormCompleted,
+          meeting_scheduled: phaseData.meetingScheduled,
+          meeting_date_time: phaseData.meetingDateTime,
+          consultant_checklist: phaseData.consultantChecklist,
+          meeting_minutes: phaseData.meetingMinutes,
+        }], {
+          onConflict: 'project_id'
+        });
 
-    if (error) {
-      console.error('Error updating phase 1 data:', error);
+      if (error) {
+        console.error('Error updating phase 1 data:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return false;
+      }
+      console.log('Phase 1 data saved successfully for project:', projectId);
+      return true;
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error updating phase 1 data:', {
+        message: errorMessage,
+        error: err,
+      });
       return false;
     }
-    return true;
   },
 
   async getPhase2Data(projectId: string): Promise<Phase2Data | null> {
