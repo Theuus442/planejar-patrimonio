@@ -407,6 +407,16 @@ export const projectsDB = {
 
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
     try {
+      // Define allowed columns that can be updated in the projects table
+      const allowedColumns = [
+        'name',
+        'status',
+        'current_phase_id',
+        'auxiliary_id',
+        'post_completion_status',
+        'phases'
+      ];
+
       // Build update object with only defined fields
       const updateObj: any = {};
 
@@ -415,6 +425,7 @@ export const projectsDB = {
       if (updates.currentPhaseId !== undefined) updateObj.current_phase_id = updates.currentPhaseId;
       if (updates.auxiliaryId !== undefined) updateObj.auxiliary_id = updates.auxiliaryId;
       if (updates.postCompletionStatus !== undefined) updateObj.post_completion_status = updates.postCompletionStatus;
+      if (updates.phases !== undefined) updateObj.phases = updates.phases;
 
       // Check if there are any fields to update
       if (Object.keys(updateObj).length === 0) {
