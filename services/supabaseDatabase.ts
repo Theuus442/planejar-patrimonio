@@ -336,25 +336,38 @@ export const projectsDB = {
   },
 
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
-    const { data, error } = await getSupabase()
-      .from('projects')
-      .update({
-        name: updates.name,
-        status: updates.status,
-        current_phase_id: updates.currentPhaseId,
-        auxiliary_id: updates.auxiliaryId,
-        post_completion_status: updates.postCompletionStatus,
-      })
-      .eq('id', projectId)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error updating project:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('projects')
+        .update({
+          name: updates.name,
+          status: updates.status,
+          current_phase_id: updates.currentPhaseId,
+          auxiliary_id: updates.auxiliaryId,
+          post_completion_status: updates.postCompletionStatus,
+        })
+        .eq('id', projectId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating project:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return null;
+      }
+
+      return await mapDatabaseProjectToAppProject(data);
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error updating project:', {
+        message: errorMessage,
+        error: err,
+      });
       return null;
     }
-    
-    return await mapDatabaseProjectToAppProject(data);
   },
 
   async deleteProject(projectId: string): Promise<boolean> {
