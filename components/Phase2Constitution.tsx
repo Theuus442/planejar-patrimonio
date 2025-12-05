@@ -178,7 +178,7 @@ export const Phase2Constitution: React.FC<Phase2ConstitutionProps> = ({ phase, p
         }
     };
 
-    const isFormReadOnly = isReadOnly || (isClientView && phaseData.status !== 'pending_client');
+    const isFormReadOnly = isReadOnly || (isClientView && phaseData.status === 'approved');
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
