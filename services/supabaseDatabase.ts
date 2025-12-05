@@ -100,13 +100,14 @@ export const usersDB = {
         throw new Error(error.message || 'Erro ao criar usuário no banco de dados');
       }
 
-      return mapDatabaseUserToAppUser(data);
+      return await mapDatabaseUserToAppUser(data);
     } catch (err: any) {
-      // Re-throw with proper error handling
-      if (err instanceof Error) {
-        throw err;
-      }
-      throw new Error(err?.message || 'Erro desconhecido ao criar usuário');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error creating user:', {
+        message: errorMessage,
+        error: err,
+      });
+      throw new Error(errorMessage || 'Erro desconhecido ao criar usuário');
     }
   },
 
@@ -242,119 +243,252 @@ export const userDocumentsDB = {
 // ============================================================================
 export const projectsDB = {
   async getProject(projectId: string): Promise<Project | null> {
-    const { data, error } = await getSupabase()
-      .from('projects')
-      .select('*')
-      .eq('id', projectId)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching project:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching project:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return null;
+      }
+
+      return await mapDatabaseProjectToAppProject(data);
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error fetching project:', {
+        message: errorMessage,
+        error: err,
+      });
       return null;
     }
-    
-    return await mapDatabaseProjectToAppProject(data);
   },
 
   async listProjects(): Promise<Project[]> {
-    const { data, error } = await getSupabase()
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error listing projects:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error listing projects:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return [];
+      }
+
+      return Promise.all(data.map(p => mapDatabaseProjectToAppProject(p)));
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error listing projects:', {
+        message: errorMessage,
+        error: err,
+      });
       return [];
     }
-    
-    return Promise.all(data.map(p => mapDatabaseProjectToAppProject(p)));
   },
 
   async listProjectsByConsultant(consultantId: string): Promise<Project[]> {
-    const { data, error } = await getSupabase()
-      .from('projects')
-      .select('*')
-      .eq('consultant_id', consultantId)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error listing projects:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('projects')
+        .select('*')
+        .eq('consultant_id', consultantId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error listing projects:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return [];
+      }
+
+      return Promise.all(data.map(p => mapDatabaseProjectToAppProject(p)));
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error listing projects:', {
+        message: errorMessage,
+        error: err,
+      });
       return [];
     }
-    
-    return Promise.all(data.map(p => mapDatabaseProjectToAppProject(p)));
   },
 
   async listProjectsByClient(clientId: string): Promise<Project[]> {
-    const { data, error } = await getSupabase()
-      .from('project_clients')
-      .select('project_id')
-      .eq('client_id', clientId);
-    
-    if (error) {
-      console.error('Error listing client projects:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('project_clients')
+        .select('project_id')
+        .eq('client_id', clientId);
+
+      if (error) {
+        console.error('Error listing client projects:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return [];
+      }
+
+      const projectIds = data.map(d => d.project_id);
+
+      if (projectIds.length === 0) return [];
+
+      const { data: projects, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .in('id', projectIds)
+        .order('created_at', { ascending: false });
+
+      if (projectError) {
+        console.error('Error fetching client projects:', {
+          code: projectError.code,
+          message: projectError.message,
+          details: projectError.details,
+        });
+        return [];
+      }
+
+      return Promise.all(projects.map(p => mapDatabaseProjectToAppProject(p)));
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error listing client projects:', {
+        message: errorMessage,
+        error: err,
+      });
       return [];
     }
-    
-    const projectIds = data.map(d => d.project_id);
-    
-    if (projectIds.length === 0) return [];
-    
-    const { data: projects, error: projectError } = await supabase
-      .from('projects')
-      .select('*')
-      .in('id', projectIds)
-      .order('created_at', { ascending: false });
-    
-    if (projectError) {
-      console.error('Error fetching client projects:', projectError);
-      return [];
-    }
-    
-    return Promise.all(projects.map(p => mapDatabaseProjectToAppProject(p)));
   },
 
   async createProject(project: Partial<Project> & { name: string; consultantId: string }): Promise<Project | null> {
-    const { data, error } = await getSupabase()
-      .from('projects')
-      .insert([{
-        name: project.name,
-        status: 'in-progress',
-        current_phase_id: 1,
-        consultant_id: project.consultantId,
-        auxiliary_id: project.auxiliaryId,
-      }])
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error creating project:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('projects')
+        .insert([{
+          name: project.name,
+          status: 'in-progress',
+          current_phase_id: 1,
+          consultant_id: project.consultantId,
+          auxiliary_id: project.auxiliaryId,
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating project:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return null;
+      }
+
+      return await mapDatabaseProjectToAppProject(data);
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error creating project:', {
+        message: errorMessage,
+        error: err,
+      });
       return null;
     }
-    
-    return await mapDatabaseProjectToAppProject(data);
   },
 
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
-    const { data, error } = await getSupabase()
-      .from('projects')
-      .update({
-        name: updates.name,
-        status: updates.status,
-        current_phase_id: updates.currentPhaseId,
-        auxiliary_id: updates.auxiliaryId,
-        post_completion_status: updates.postCompletionStatus,
-      })
-      .eq('id', projectId)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error updating project:', error);
+    try {
+      // Define allowed columns that can be updated in the projects table
+      const allowedColumns = [
+        'name',
+        'status',
+        'current_phase_id',
+        'auxiliary_id',
+        'post_completion_status',
+        'phases'
+      ];
+
+      // Handle phase data updates separately (stored in separate tables)
+      if (updates.phases !== undefined) {
+        const currentProject = await this.getProject(projectId);
+        if (currentProject && currentProject.phases) {
+          // Check each phase for updates
+          for (let i = 0; i < updates.phases.length; i++) {
+            const updatedPhase = updates.phases[i];
+            const currentPhase = currentProject.phases[i];
+
+            // Phase 1 data
+            if (updatedPhase.id === 1 && updatedPhase.phase1Data && JSON.stringify(updatedPhase.phase1Data) !== JSON.stringify(currentPhase?.phase1Data)) {
+              await phaseDataDB.updatePhase1Data(projectId, updatedPhase.phase1Data);
+            }
+            // Phase 2 data
+            else if (updatedPhase.id === 2 && updatedPhase.phase2Data && JSON.stringify(updatedPhase.phase2Data) !== JSON.stringify(currentPhase?.phase2Data)) {
+              await phaseDataDB.updatePhase2Data(projectId, updatedPhase.phase2Data);
+            }
+            // Phase 3 data
+            else if (updatedPhase.id === 3 && updatedPhase.phase3Data && JSON.stringify(updatedPhase.phase3Data) !== JSON.stringify(currentPhase?.phase3Data)) {
+              await phaseDataDB.updatePhase3Data(projectId, updatedPhase.phase3Data);
+            }
+          }
+        }
+        // Don't update phases in the projects table, they're stored separately
+        delete updates.phases;
+      }
+
+      // Build update object with only defined fields for the projects table
+      const updateObj: any = {};
+
+      if (updates.name !== undefined) updateObj.name = updates.name;
+      if (updates.status !== undefined) updateObj.status = updates.status;
+      if (updates.currentPhaseId !== undefined) updateObj.current_phase_id = updates.currentPhaseId;
+      if (updates.auxiliaryId !== undefined) updateObj.auxiliary_id = updates.auxiliaryId;
+      if (updates.postCompletionStatus !== undefined) updateObj.post_completion_status = updates.postCompletionStatus;
+
+      // If only phases were being updated, just return the current project
+      if (Object.keys(updateObj).length === 0) {
+        console.warn('updateProject called with only phase data. No project table fields updated.');
+        return await this.getProject(projectId);
+      }
+
+      const { data, error } = await getSupabase()
+        .from('projects')
+        .update(updateObj)
+        .eq('id', projectId)
+        .select();
+
+      if (error) {
+        console.error('Error updating project:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return null;
+      }
+
+      if (!data || (Array.isArray(data) && data.length === 0)) {
+        console.error('Error updating project: No data returned from update. ProjectId:', projectId, 'Updates:', updateObj);
+        return null;
+      }
+
+      const projectData = Array.isArray(data) ? data[0] : data;
+      return await mapDatabaseProjectToAppProject(projectData);
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error updating project:', {
+        message: errorMessage,
+        error: err,
+      });
       return null;
     }
-    
-    return await mapDatabaseProjectToAppProject(data);
   },
 
   async deleteProject(projectId: string): Promise<boolean> {
@@ -722,25 +856,56 @@ export const phaseDataDB = {
   },
 
   async updatePhase1Data(projectId: string, phaseData: Partial<Phase1Data>): Promise<boolean> {
-    const { error } = await getSupabase()
-      .from('phase_1_data')
-      .upsert([{
+    try {
+      // Build the update object with only the fields that exist in the database
+      const updateData: any = {
         project_id: projectId,
-        diagnostic_summary: phaseData.diagnosticSummary,
-        objectives: phaseData.objectives || phaseData.objective,
-        family_composition: phaseData.familyComposition,
-        main_assets: phaseData.mainAssets,
-        partners: phaseData.partners,
-        existing_companies: phaseData.existingCompanies,
-        meeting_link: phaseData.meetingLink,
-      }])
-      .eq('project_id', projectId);
-    
-    if (error) {
-      console.error('Error updating phase 1 data:', error);
+      };
+
+      // Add fields only if they are defined
+      if (phaseData.diagnosticSummary !== undefined) updateData.diagnostic_summary = phaseData.diagnosticSummary;
+      if (phaseData.objective !== undefined) updateData.objectives = phaseData.objective;
+      else if (phaseData.objectives !== undefined) updateData.objectives = phaseData.objectives;
+      if (phaseData.familyComposition !== undefined) updateData.family_composition = phaseData.familyComposition;
+      if (phaseData.mainAssets !== undefined) updateData.main_assets = phaseData.mainAssets;
+      if (phaseData.partners !== undefined) updateData.partners = phaseData.partners;
+      if (phaseData.existingCompanies !== undefined) updateData.existing_companies = phaseData.existingCompanies;
+      if (phaseData.meetingLink !== undefined) updateData.meeting_link = phaseData.meetingLink;
+
+      console.log('Upserting phase 1 data:', { projectId, dataBeingSet: updateData });
+
+      const { error } = await getSupabase()
+        .from('phase_1_data')
+        .upsert([updateData], { onConflict: 'project_id' });
+
+      if (error) {
+        const errorDetails = {
+          code: error.code || 'UNKNOWN',
+          message: error.message || 'No message provided',
+          details: error.details || 'No details',
+          hint: error.hint || 'No hint',
+          errorString: JSON.stringify(error),
+        };
+        console.error('Error updating phase 1 data:', errorDetails);
+        console.error('Full error object:', error);
+        alert(`Erro ao salvar pré-diagnóstico:\n${error.message || JSON.stringify(error)}`);
+        return false;
+      }
+      console.log('Phase 1 data saved successfully for project:', projectId);
+      return true;
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorDetails = {
+        message: errorMessage,
+        stack: err?.stack,
+        errorString: JSON.stringify(err),
+        type: typeof err,
+      };
+      console.error('Error updating phase 1 data (catch):', errorDetails);
+      console.error('Full caught error:', err);
+      alert(`Erro ao salvar pré-diagnóstico:\n${errorMessage}`);
       return false;
     }
-    return true;
   },
 
   async getPhase2Data(projectId: string): Promise<Phase2Data | null> {
@@ -833,9 +998,8 @@ export const phaseDataDB = {
       .upsert([{
         project_id: projectId,
         status: phaseData.status,
-      }])
-      .eq('project_id', projectId);
-    
+      }], { onConflict: 'project_id' });
+
     if (error) {
       console.error('Error updating phase 3 data:', error);
       return false;
@@ -1093,11 +1257,17 @@ function mapDatabasePhase1DataToAppPhase1Data(dbData: any): Phase1Data {
   return {
     diagnosticSummary: dbData.diagnostic_summary,
     objectives: dbData.objectives,
+    objective: dbData.objectives, // Fallback to objectives
     familyComposition: dbData.family_composition,
     mainAssets: dbData.main_assets,
     partners: dbData.partners,
     existingCompanies: dbData.existing_companies,
     meetingLink: dbData.meeting_link,
+    isFormCompleted: dbData.is_form_completed || false,
+    meetingScheduled: dbData.meeting_scheduled || false,
+    meetingDateTime: dbData.meeting_date_time,
+    consultantChecklist: dbData.consultant_checklist,
+    meetingMinutes: dbData.meeting_minutes,
   };
 }
 
