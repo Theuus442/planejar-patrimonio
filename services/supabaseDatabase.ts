@@ -1232,11 +1232,17 @@ function mapDatabasePhase1DataToAppPhase1Data(dbData: any): Phase1Data {
   return {
     diagnosticSummary: dbData.diagnostic_summary,
     objectives: dbData.objectives,
+    objective: dbData.objectives, // Fallback to objectives
     familyComposition: dbData.family_composition,
     mainAssets: dbData.main_assets,
     partners: dbData.partners,
     existingCompanies: dbData.existing_companies,
     meetingLink: dbData.meeting_link,
+    isFormCompleted: dbData.is_form_completed || false,
+    meetingScheduled: dbData.meeting_scheduled || false,
+    meetingDateTime: dbData.meeting_date_time,
+    consultantChecklist: dbData.consultant_checklist,
+    meetingMinutes: dbData.meeting_minutes,
   };
 }
 
