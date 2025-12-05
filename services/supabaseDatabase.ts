@@ -879,22 +879,31 @@ export const phaseDataDB = {
         .upsert([updateData]);
 
       if (error) {
-        console.error('Error updating phase 1 data:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        });
+        const errorDetails = {
+          code: error.code || 'UNKNOWN',
+          message: error.message || 'No message provided',
+          details: error.details || 'No details',
+          hint: error.hint || 'No hint',
+          errorString: JSON.stringify(error),
+        };
+        console.error('Error updating phase 1 data:', errorDetails);
+        console.error('Full error object:', error);
+        alert(`Erro ao salvar pré-diagnóstico:\n${error.message || JSON.stringify(error)}`);
         return false;
       }
       console.log('Phase 1 data saved successfully for project:', projectId);
       return true;
     } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error('Error updating phase 1 data:', {
+      const errorDetails = {
         message: errorMessage,
         stack: err?.stack,
-      });
+        errorString: JSON.stringify(err),
+        type: typeof err,
+      };
+      console.error('Error updating phase 1 data (catch):', errorDetails);
+      console.error('Full caught error:', err);
+      alert(`Erro ao salvar pré-diagnóstico:\n${errorMessage}`);
       return false;
     }
   },
