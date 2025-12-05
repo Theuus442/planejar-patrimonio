@@ -242,18 +242,31 @@ export const userDocumentsDB = {
 // ============================================================================
 export const projectsDB = {
   async getProject(projectId: string): Promise<Project | null> {
-    const { data, error } = await getSupabase()
-      .from('projects')
-      .select('*')
-      .eq('id', projectId)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching project:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching project:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return null;
+      }
+
+      return await mapDatabaseProjectToAppProject(data);
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error fetching project:', {
+        message: errorMessage,
+        error: err,
+      });
       return null;
     }
-    
-    return await mapDatabaseProjectToAppProject(data);
   },
 
   async listProjects(): Promise<Project[]> {
