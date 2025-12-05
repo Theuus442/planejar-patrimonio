@@ -100,13 +100,14 @@ export const usersDB = {
         throw new Error(error.message || 'Erro ao criar usuário no banco de dados');
       }
 
-      return mapDatabaseUserToAppUser(data);
+      return await mapDatabaseUserToAppUser(data);
     } catch (err: any) {
-      // Re-throw with proper error handling
-      if (err instanceof Error) {
-        throw err;
-      }
-      throw new Error(err?.message || 'Erro desconhecido ao criar usuário');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error creating user:', {
+        message: errorMessage,
+        error: err,
+      });
+      throw new Error(errorMessage || 'Erro desconhecido ao criar usuário');
     }
   },
 
