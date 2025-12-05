@@ -270,17 +270,30 @@ export const projectsDB = {
   },
 
   async listProjects(): Promise<Project[]> {
-    const { data, error } = await getSupabase()
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error listing projects:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error listing projects:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        return [];
+      }
+
+      return Promise.all(data.map(p => mapDatabaseProjectToAppProject(p)));
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error listing projects:', {
+        message: errorMessage,
+        error: err,
+      });
       return [];
     }
-    
-    return Promise.all(data.map(p => mapDatabaseProjectToAppProject(p)));
   },
 
   async listProjectsByConsultant(consultantId: string): Promise<Project[]> {
