@@ -429,7 +429,13 @@ export const projectsDB = {
         return null;
       }
 
-      return await mapDatabaseProjectToAppProject(data);
+      if (!data || (Array.isArray(data) && data.length === 0)) {
+        console.error('Error updating project: No data returned from update');
+        return null;
+      }
+
+      const projectData = Array.isArray(data) ? data[0] : data;
+      return await mapDatabaseProjectToAppProject(projectData);
     } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error('Error updating project:', {
