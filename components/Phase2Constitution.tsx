@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Phase, Phase2Data, UserRole, Project, User, NewClientData, PartnerDataForPhase2, Document as DocType, PartnerQualificationData, UserDocument } from '../types';
 import Icon from './Icon';
@@ -238,7 +237,7 @@ export const Phase2Constitution: React.FC<Phase2ConstitutionProps> = ({ phase, p
                                     <div className="flex items-center space-x-4">
                                         <div className="w-32">
                                             <label className="text-xs">Participação (%)</label>
-                                            <input type="number" value={partner.participation} onChange={(e) => handlePartnerChange(partner.userId, 'participation', e.target.value === '' ? '' : Number(e.target.value))} className="w-full text-sm rounded-md border-gray-300" disabled={isFormReadOnly} />
+                                            <input type="number" value={partner.participation ?? ''} onChange={(e) => handlePartnerChange(partner.userId, 'participation', e.target.value === '' ? '' : Number(e.target.value))} className="w-full text-sm rounded-md border-gray-300" disabled={isFormReadOnly} />
                                         </div>
                                         <div className="flex items-center pt-4">
                                             <input type="checkbox" id={`admin-${partner.userId}`} checked={partner.isAdministrator} onChange={(e) => handlePartnerChange(partner.userId, 'isAdministrator', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-secondary focus:ring-brand-accent" disabled={isFormReadOnly} />
