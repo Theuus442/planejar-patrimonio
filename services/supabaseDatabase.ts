@@ -417,8 +417,7 @@ export const projectsDB = {
           post_completion_status: updates.postCompletionStatus,
         })
         .eq('id', projectId)
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error('Error updating project:', {
