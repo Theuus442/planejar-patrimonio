@@ -858,7 +858,7 @@ const App = () => {
       )}
 
       {!store.isAiChatOpen && (
-          <button 
+          <button
             onClick={() => store.setIsAiChatOpen(true)}
             style={{position: 'fixed', bottom: '1.5rem', right: '1.5rem', backgroundColor: '#004c59', color: 'white', borderRadius: '50%', padding: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', cursor: 'pointer', border: 'none'}}
             aria-label="Abrir chat com assistente IA"
@@ -866,6 +866,8 @@ const App = () => {
               <Icon name="ai" style={{width: '2rem', height: '2rem'}}/>
           </button>
       )}
+
+      <Toast toast={currentToast} onClose={closeToast} />
     </div>
   );
 };
