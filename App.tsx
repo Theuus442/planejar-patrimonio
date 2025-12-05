@@ -30,6 +30,7 @@ import AIChat from './components/AIChat';
 import { createAIChatSession } from './services/geminiService';
 import Icon from './components/Icon';
 import SupportDashboard from './components/SupportDashboard';
+import Toast, { ToastMessage } from './components/Toast';
 
 // ============================================================================
 // STATE MANAGEMENT HOOK
