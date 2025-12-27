@@ -675,27 +675,35 @@ export const projectClientsDB = {
 // ============================================================================
 export const documentsDB = {
   async uploadDocument(document: Partial<Document> & { projectId: string; phaseId: number; name: string; url: string }): Promise<Document | null> {
-    const { data, error } = await getSupabase()
-      .from('documents')
-      .insert([{
-        project_id: document.projectId,
-        phase_id: document.phaseId,
-        name: document.name,
-        url: document.url,
-        type: document.type || 'pdf',
-        uploaded_by: document.uploadedBy,
-        version: 1,
-        status: 'active',
-      }])
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error uploading document:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('documents')
+        .insert([{
+          project_id: document.projectId,
+          phase_id: document.phaseId,
+          name: document.name,
+          url: document.url,
+          type: document.type || 'pdf',
+          uploaded_by: document.uploadedBy,
+          version: 1,
+          status: 'active',
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error uploading document:', error);
+        return null;
+      }
+
+      return mapDatabaseDocumentToAppDocument(data);
+    } catch (err: any) {
+      console.error('Unexpected error uploading document:', {
+        message: err?.message || String(err),
+        documentName: document.name,
+      });
       return null;
     }
-    
-    return mapDatabaseDocumentToAppDocument(data);
   },
 
   async getDocument(documentId: string): Promise<Document | null> {
