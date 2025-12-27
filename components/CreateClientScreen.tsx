@@ -110,6 +110,29 @@ const CreateClientScreen: React.FC<CreateClientScreenProps> = ({ onBack, onCreat
     
     const steps = ["Projeto", "Cliente Principal", "Membros Adicionais", "Revisão"];
 
+    if (isLoading) {
+        return (
+            <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+                <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 shadow-xl">
+                    <div className="flex flex-col items-center">
+                        <LoadingSpinner size="large" />
+                        <h3 className="mt-4 text-lg font-semibold text-gray-800">Criando projeto...</h3>
+                        <p className="mt-2 text-sm text-gray-600 text-center">
+                            Esto pode levar alguns minutos. Por favor, não feche esta página.
+                        </p>
+                        {additionalClients.length > 0 && (
+                            <p className="mt-3 text-xs text-gray-500 text-center">
+                                Criando {1 + additionalClients.length} cliente(s)...
+                                <br/>
+                                Cada um leva até 65 segundos
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <button onClick={onBack} className="flex items-center text-sm font-medium text-brand-secondary hover:text-brand-primary mb-6">
