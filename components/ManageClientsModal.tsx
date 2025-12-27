@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Project, User, UserRole } from '../types';
 import Icon from './Icon';
+import LoadingSpinner from './LoadingSpinner';
 
 interface ManageClientsModalProps {
   isOpen: boolean;
