@@ -34,21 +34,29 @@ const getSupabase = () => {
 // ============================================================================
 export const usersDB = {
   async getUser(userId: string): Promise<User | null> {
-    const { data, error } = await getSupabase()
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching user:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
+    try {
+      const { data, error } = await getSupabase()
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        });
+        return null;
+      }
+      return mapDatabaseUserToAppUser(data);
+    } catch (err: any) {
+      console.error('Unexpected error fetching user:', {
+        message: err?.message || String(err),
+        userId,
       });
       return null;
     }
-    return mapDatabaseUserToAppUser(data);
   },
 
   async listUsers(): Promise<User[]> {
@@ -165,50 +173,66 @@ export const usersDB = {
   },
 
   async updateQualificationData(userId: string, qualificationData: any): Promise<boolean> {
-    const { error } = await getSupabase()
-      .from('partner_qualification_data')
-      .upsert([{
-        user_id: userId,
-        cpf: qualificationData.cpf,
-        rg: qualificationData.rg,
-        marital_status: qualificationData.maritalStatus,
-        property_regime: qualificationData.propertyRegime,
-        birth_date: qualificationData.birthDate,
-        nationality: qualificationData.nationality,
-        address: qualificationData.address,
-        phone: qualificationData.phone,
-        declares_income_tax: qualificationData.declaresIncomeTax,
-      }])
-      .eq('user_id', userId);
-    
-    if (error) {
-      console.error('Error updating qualification data:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
+    try {
+      const { error } = await getSupabase()
+        .from('partner_qualification_data')
+        .upsert([{
+          user_id: userId,
+          cpf: qualificationData.cpf,
+          rg: qualificationData.rg,
+          marital_status: qualificationData.maritalStatus,
+          property_regime: qualificationData.propertyRegime,
+          birth_date: qualificationData.birthDate,
+          nationality: qualificationData.nationality,
+          address: qualificationData.address,
+          phone: qualificationData.phone,
+          declares_income_tax: qualificationData.declaresIncomeTax,
+        }])
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error updating qualification data:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        });
+        return false;
+      }
+      return true;
+    } catch (err: any) {
+      console.error('Unexpected error updating qualification data:', {
+        message: err?.message || String(err),
+        userId,
       });
       return false;
     }
-    return true;
   },
 
   async getQualificationData(userId: string): Promise<any | null> {
-    const { data, error } = await getSupabase()
-      .from('partner_qualification_data')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await getSupabase()
+        .from('partner_qualification_data')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (error) {
-      console.warn('Error fetching qualification data:', error.message || error);
+      if (error) {
+        console.warn('Error fetching qualification data:', error.message || error);
+        return null;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      return mapDatabaseQualificationToAppQualification(data);
+    } catch (err: any) {
+      console.error('Unexpected error fetching qualification data:', {
+        message: err?.message || String(err),
+        userId,
+      });
       return null;
     }
-
-    if (!data) {
-      return null;
-    }
-
-    return mapDatabaseQualificationToAppQualification(data);
   },
 };
 
@@ -238,22 +262,30 @@ export const userDocumentsDB = {
   },
 
   async getUserDocuments(userId: string): Promise<any[]> {
-    const { data, error } = await getSupabase()
-      .from('user_documents')
-      .select('*')
-      .eq('user_id', userId)
-      .order('uploaded_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching user documents:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
+    try {
+      const { data, error } = await getSupabase()
+        .from('user_documents')
+        .select('*')
+        .eq('user_id', userId)
+        .order('uploaded_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching user documents:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        });
+        return [];
+      }
+
+      return data.map(mapDatabaseDocumentToAppDocument);
+    } catch (err: any) {
+      console.error('Unexpected error fetching user documents:', {
+        message: err?.message || String(err),
+        userId,
       });
       return [];
     }
-    
-    return data.map(mapDatabaseDocumentToAppDocument);
   },
 
   async deleteUserDocument(documentId: string): Promise<boolean> {
@@ -550,18 +582,39 @@ export const projectsDB = {
 // ============================================================================
 export const projectClientsDB = {
   async addClientToProject(projectId: string, clientId: string): Promise<boolean> {
-    const { error } = await getSupabase()
+    // First check if the relationship already exists to prevent duplicates
+    const { data: existingData, error: checkError } = await getSupabase()
+      .from('project_clients')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('client_id', clientId)
+      .single();
+
+    // If the relationship already exists, return success (idempotent)
+    if (existingData) {
+      console.log(`Client ${clientId} already exists in project ${projectId}`);
+      return true;
+    }
+
+    // If there was an error other than "no rows", log it
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.warn('Error checking existing client:', checkError);
+      // Continue with insert anyway
+    }
+
+    // Insert the new relationship
+    const { error: insertError } = await getSupabase()
       .from('project_clients')
       .insert([{
         project_id: projectId,
         client_id: clientId,
       }]);
-    
-    if (error) {
+
+    if (insertError) {
       console.error('Error adding client to project:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
+        message: insertError.message,
+        code: insertError.code,
+        details: insertError.details,
       });
       return false;
     }
@@ -587,25 +640,33 @@ export const projectClientsDB = {
   },
 
   async getProjectClients(projectId: string): Promise<User[]> {
-    const { data, error } = await getSupabase()
-      .from('project_clients')
-      .select('client_id')
-      .eq('project_id', projectId);
-    
-    if (error) {
-      console.error('Error fetching project clients:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
+    try {
+      const { data, error } = await getSupabase()
+        .from('project_clients')
+        .select('client_id')
+        .eq('project_id', projectId);
+
+      if (error) {
+        console.error('Error fetching project clients:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        });
+        return [];
+      }
+
+      const users = await Promise.all(
+        data.map(d => usersDB.getUser(d.client_id))
+      );
+
+      return users.filter((u): u is User => u !== null);
+    } catch (err: any) {
+      console.error('Unexpected error fetching project clients:', {
+        message: err?.message || String(err),
+        projectId,
       });
       return [];
     }
-    
-    const users = await Promise.all(
-      data.map(d => usersDB.getUser(d.client_id))
-    );
-    
-    return users.filter((u): u is User => u !== null);
   },
 };
 
@@ -614,27 +675,35 @@ export const projectClientsDB = {
 // ============================================================================
 export const documentsDB = {
   async uploadDocument(document: Partial<Document> & { projectId: string; phaseId: number; name: string; url: string }): Promise<Document | null> {
-    const { data, error } = await getSupabase()
-      .from('documents')
-      .insert([{
-        project_id: document.projectId,
-        phase_id: document.phaseId,
-        name: document.name,
-        url: document.url,
-        type: document.type || 'pdf',
-        uploaded_by: document.uploadedBy,
-        version: 1,
-        status: 'active',
-      }])
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error uploading document:', error);
+    try {
+      const { data, error } = await getSupabase()
+        .from('documents')
+        .insert([{
+          project_id: document.projectId,
+          phase_id: document.phaseId,
+          name: document.name,
+          url: document.url,
+          type: document.type || 'pdf',
+          uploaded_by: document.uploadedBy,
+          version: 1,
+          status: 'active',
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error uploading document:', error);
+        return null;
+      }
+
+      return mapDatabaseDocumentToAppDocument(data);
+    } catch (err: any) {
+      console.error('Unexpected error uploading document:', {
+        message: err?.message || String(err),
+        documentName: document.name,
+      });
       return null;
     }
-    
-    return mapDatabaseDocumentToAppDocument(data);
   },
 
   async getDocument(documentId: string): Promise<Document | null> {
@@ -1441,6 +1510,12 @@ async function mapDatabaseProjectToAppProject(dbProject: any): Promise<Project> 
     };
   });
 
+  // Deduplicate clientIds in case there are duplicates in the database
+  const uniqueClientIds = Array.from(new Set(clients.map(c => c.id)));
+  if (uniqueClientIds.length < clients.length) {
+    console.warn(`Duplicate clients detected for project ${dbProject.id}. Found ${clients.length} clients but ${uniqueClientIds.length} unique IDs. Duplicates have been removed.`);
+  }
+
   return {
     id: dbProject.id,
     name: dbProject.name,
@@ -1448,7 +1523,7 @@ async function mapDatabaseProjectToAppProject(dbProject: any): Promise<Project> 
     currentPhaseId: dbProject.current_phase_id,
     consultantId: dbProject.consultant_id,
     auxiliaryId: dbProject.auxiliary_id,
-    clientIds: clients.map(c => c.id),
+    clientIds: uniqueClientIds,
     phases,
     internalChat,
     clientChat,

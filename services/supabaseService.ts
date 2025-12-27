@@ -2,6 +2,46 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let supabaseClient: SupabaseClient | null = null;
 
+// Retry helper with exponential backoff
+export const retryWithBackoff = async <T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 500
+): Promise<T> => {
+  let lastError: any;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+
+      // Don't retry on authentication errors
+      if (error?.message?.includes('Invalid API Key') ||
+          error?.message?.includes('PGRST')) {
+        throw error;
+      }
+
+      // Check if it's a network error worth retrying
+      if (!(error instanceof TypeError && error.message === 'Failed to fetch')) {
+        throw error;
+      }
+
+      // If this is the last attempt, throw
+      if (attempt === maxRetries - 1) {
+        break;
+      }
+
+      // Exponential backoff with jitter
+      const delayMs = baseDelayMs * Math.pow(2, attempt) + Math.random() * 1000;
+      console.warn(`Network error on attempt ${attempt + 1}/${maxRetries}. Retrying in ${Math.round(delayMs)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw lastError;
+};
+
 const getSupabaseClient = (): SupabaseClient => {
   if (!supabaseClient) {
     const url = import.meta.env.VITE_SUPABASE_URL;
@@ -15,58 +55,103 @@ const getSupabaseClient = (): SupabaseClient => {
     if (!url || !anonKey) {
       const errorMsg = `Missing Supabase configuration:
         - VITE_SUPABASE_URL: ${url ? 'SET' : 'MISSING'}
-        - VITE_SUPABASE_ANON_KEY: ${anonKey ? 'SET' : 'MISSING'}`;
+        - VITE_SUPABASE_ANON_KEY: ${anonKey ? 'SET' : 'MISSING'}
+
+Make sure environment variables are set in DevServerControl or .env file`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      const errorMsg = `Invalid VITE_SUPABASE_URL format: ${url}`;
       console.error(errorMsg);
       throw new Error(errorMsg);
     }
 
     supabaseClient = createClient(url, anonKey);
+    console.log('✅ Supabase client initialized successfully');
   }
 
   return supabaseClient;
 };
 
+// Helper to handle network errors
+const handleSupabaseError = (error: any, operation: string) => {
+  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+    console.error(`${operation} - Network Error: Cannot reach Supabase server. Check your connection and Supabase URL.`);
+    throw new Error(`Network Error: Failed to connect to Supabase. Please check your internet connection and try again.`);
+  }
+  throw error;
+};
+
 // Authentication functions
 export const supabaseAuth = {
   async signUp(email: string, password: string) {
-    const { data, error } = await getSupabaseClient().auth.signUp({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await getSupabaseClient().auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      handleSupabaseError(err, 'signUp');
+    }
   },
 
   async signIn(email: string, password: string) {
-    const { data, error } = await getSupabaseClient().auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await getSupabaseClient().auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      handleSupabaseError(err, 'signIn');
+    }
   },
 
   async signOut() {
-    const { error } = await getSupabaseClient().auth.signOut();
-    if (error) throw error;
+    try {
+      const { error } = await getSupabaseClient().auth.signOut();
+      if (error) throw error;
+    } catch (err: any) {
+      handleSupabaseError(err, 'signOut');
+    }
   },
 
   async getCurrentSession() {
-    const { data, error } = await getSupabaseClient().auth.getSession();
-    if (error) throw error;
-    return data.session;
+    try {
+      const { data, error } = await getSupabaseClient().auth.getSession();
+      if (error) throw error;
+      return data.session;
+    } catch (err: any) {
+      handleSupabaseError(err, 'getCurrentSession');
+    }
   },
 
   async getCurrentUser() {
-    const { data, error } = await getSupabaseClient().auth.getUser();
-    if (error) throw error;
-    return data.user;
+    try {
+      const { data, error } = await getSupabaseClient().auth.getUser();
+      if (error) throw error;
+      return data.user;
+    } catch (err: any) {
+      handleSupabaseError(err, 'getCurrentUser');
+    }
   },
 
   async resetPassword(email: string) {
-    const { data, error } = await getSupabaseClient().auth.resetPasswordForEmail(email);
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await getSupabaseClient().auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      handleSupabaseError(err, 'resetPassword');
+    }
   },
 
   onAuthStateChange(callback: (event: string, session: any) => void) {

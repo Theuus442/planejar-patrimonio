@@ -98,8 +98,10 @@ const useStore = () => {
                     setAllUsers([]);
                     setProjects([]);
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Auth initialization error:', error);
+                const errorMessage = error?.message || 'Erro ao conectar com o servidor';
+                console.warn('⚠️ Connectivity issue detected:', errorMessage);
                 setCurrentUser(null);
             } finally {
                 setIsLoading(false);
@@ -180,14 +182,14 @@ const useStore = () => {
     const reloadProjects = useCallback(async () => {
         try {
             if (!currentUser) return;
-            
+
             let userProjects: Project[] = [];
             if (currentUser.role === UserRole.CLIENT) {
                 userProjects = await projectsDB.listProjectsByClient(currentUser.id);
             } else {
                 userProjects = await projectsDB.listProjects();
             }
-            
+
             setProjects(userProjects);
         } catch (error) {
             console.error('Error reloading projects:', error);
@@ -600,6 +602,7 @@ const useStore = () => {
 const App = () => {
   const store = useStore();
   const [currentRoute, setCurrentRoute] = useState<string>('');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
     // Detect current route from URL pathname
@@ -647,12 +650,48 @@ const App = () => {
         .loading-spinner {
           animation: spin 1s linear infinite;
         }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+        .pulse {
+          animation: pulse 2s ease-in-out infinite;
+        }
       `}</style>
-      <div style={{textAlign: 'center'}}>
+      <div style={{textAlign: 'center', maxWidth: '400px'}}>
         <p style={{fontSize: '1.25rem', color: '#374151', marginBottom: '1rem'}}>Carregando...</p>
-        <div className="loading-spinner" style={{width: '3rem', height: '3rem', margin: '0 auto', borderRadius: '50%', borderTop: '2px solid #004c59', borderRight: '2px solid transparent', borderBottom: '2px solid transparent', borderLeft: '2px solid transparent'}}></div>
+        <div className="loading-spinner" style={{width: '3rem', height: '3rem', margin: '0 auto 1.5rem', borderRadius: '50%', borderTop: '2px solid #004c59', borderRight: '2px solid transparent', borderBottom: '2px solid transparent', borderLeft: '2px solid transparent'}}></div>
+        <p style={{fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem'}}>Conectando ao servidor...</p>
+        <p style={{fontSize: '0.75rem', color: '#9ca3af', className: 'pulse'}}>Se isto demorar muito, verifique sua conexão com a internet</p>
       </div>
     </div>;
+  }
+
+  if (connectionError) {
+    return (
+      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fef2f2', fontFamily: 'sans-serif'}}>
+        <div style={{textAlign: 'center', maxWidth: '500px', padding: '2rem'}}>
+          <div style={{fontSize: '3rem', marginBottom: '1rem'}}>⚠️</div>
+          <h1 style={{fontSize: '1.5rem', fontWeight: 'bold', color: '#dc2626', marginBottom: '1rem'}}>Erro de Conectividade</h1>
+          <p style={{color: '#7f1d1d', marginBottom: '1.5rem'}}>{connectionError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.375rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '1rem'
+            }}
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (store.userForPasswordChange) {

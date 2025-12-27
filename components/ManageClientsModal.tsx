@@ -40,9 +40,12 @@ const ManageClientsModal: React.FC<ManageClientsModalProps> = ({ isOpen, onClose
         role: UserRole.CLIENT,
         requiresPasswordChange: true,
     };
-    
+
     onAddUser(newUser);
-    onUpdateProject(project.id, { clientIds: [...project.clientIds, newUser.id] });
+    // Only add if not already in the project (prevent duplicates)
+    if (!project.clientIds.includes(newUser.id)) {
+        onUpdateProject(project.id, { clientIds: [...project.clientIds, newUser.id] });
+    }
     setNewClient({ name: '', email: '', password: '', clientType: 'partner' });
   };
 
