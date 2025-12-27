@@ -38,47 +38,80 @@ Make sure environment variables are set in DevServerControl or .env file`;
   return supabaseClient;
 };
 
+// Helper to handle network errors
+const handleSupabaseError = (error: any, operation: string) => {
+  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+    console.error(`${operation} - Network Error: Cannot reach Supabase server. Check your connection and Supabase URL.`);
+    throw new Error(`Network Error: Failed to connect to Supabase. Please check your internet connection and try again.`);
+  }
+  throw error;
+};
+
 // Authentication functions
 export const supabaseAuth = {
   async signUp(email: string, password: string) {
-    const { data, error } = await getSupabaseClient().auth.signUp({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await getSupabaseClient().auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      handleSupabaseError(err, 'signUp');
+    }
   },
 
   async signIn(email: string, password: string) {
-    const { data, error } = await getSupabaseClient().auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await getSupabaseClient().auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      handleSupabaseError(err, 'signIn');
+    }
   },
 
   async signOut() {
-    const { error } = await getSupabaseClient().auth.signOut();
-    if (error) throw error;
+    try {
+      const { error } = await getSupabaseClient().auth.signOut();
+      if (error) throw error;
+    } catch (err: any) {
+      handleSupabaseError(err, 'signOut');
+    }
   },
 
   async getCurrentSession() {
-    const { data, error } = await getSupabaseClient().auth.getSession();
-    if (error) throw error;
-    return data.session;
+    try {
+      const { data, error } = await getSupabaseClient().auth.getSession();
+      if (error) throw error;
+      return data.session;
+    } catch (err: any) {
+      handleSupabaseError(err, 'getCurrentSession');
+    }
   },
 
   async getCurrentUser() {
-    const { data, error } = await getSupabaseClient().auth.getUser();
-    if (error) throw error;
-    return data.user;
+    try {
+      const { data, error } = await getSupabaseClient().auth.getUser();
+      if (error) throw error;
+      return data.user;
+    } catch (err: any) {
+      handleSupabaseError(err, 'getCurrentUser');
+    }
   },
 
   async resetPassword(email: string) {
-    const { data, error } = await getSupabaseClient().auth.resetPasswordForEmail(email);
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await getSupabaseClient().auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      handleSupabaseError(err, 'resetPassword');
+    }
   },
 
   onAuthStateChange(callback: (event: string, session: any) => void) {
