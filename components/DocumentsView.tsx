@@ -6,18 +6,25 @@ import LoadingSpinner from './LoadingSpinner';
 interface UploadModalProps {
   phases: Phase[];
   onClose: () => void;
-  onUpload: (file: File, phaseId: number, description: string) => void;
+  onUpload: (file: File, phaseId: number, description: string) => Promise<void>;
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({ phases, onClose, onUpload }) => {
     const [file, setFile] = useState<File | null>(null);
     const [phaseId, setPhaseId] = useState<number>(phases[0]?.id || 1);
     const [description, setDescription] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (file && phaseId) {
-            onUpload(file, phaseId, description);
+            setIsLoading(true);
+            try {
+                await onUpload(file, phaseId, description);
+                onClose();
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
     
