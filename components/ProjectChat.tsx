@@ -8,10 +8,12 @@ interface ProjectChatProps {
   currentUser: User;
   onSendMessage: (content: string) => void;
   onClose: () => void;
+  isLoading?: boolean;
 }
 
-const ProjectChat: React.FC<ProjectChatProps> = ({ project, chatType, currentUser, onSendMessage, onClose }) => {
+const ProjectChat: React.FC<ProjectChatProps> = ({ project, chatType, currentUser, onSendMessage, onClose, isLoading = false }) => {
   const [message, setMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const chatHistory = chatType === 'client' ? project.clientChat : project.internalChat;
