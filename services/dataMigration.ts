@@ -359,6 +359,87 @@ export const dataMigrationService = {
   },
 
   /**
+   * Remove duplicate project-client relationships from database
+   * This fixes an issue where the same client was added multiple times to a project
+   */
+  async cleanupDuplicateProjectClients(): Promise<{
+    success: boolean;
+    message: string;
+    duplicatesRemoved: number;
+  }> {
+    try {
+      console.log('🔧 Starting cleanup of duplicate project-client relationships...');
+
+      // Get all project-client relationships
+      const { data: allRelationships, error: fetchError } = await supabase
+        .from('project_clients')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (!allRelationships || allRelationships.length === 0) {
+        console.log('✅ No project-client relationships found');
+        return {
+          success: true,
+          message: 'No duplicates found',
+          duplicatesRemoved: 0,
+        };
+      }
+
+      // Find duplicates
+      const seen = new Set<string>();
+      const duplicatesToDelete: string[] = [];
+
+      for (const rel of allRelationships) {
+        const key = `${rel.project_id}:${rel.client_id}`;
+        if (seen.has(key)) {
+          duplicatesToDelete.push(rel.id);
+        } else {
+          seen.add(key);
+        }
+      }
+
+      if (duplicatesToDelete.length === 0) {
+        console.log('✅ No duplicates found');
+        return {
+          success: true,
+          message: 'No duplicates found',
+          duplicatesRemoved: 0,
+        };
+      }
+
+      // Delete duplicates
+      for (const id of duplicatesToDelete) {
+        const { error: deleteError } = await supabase
+          .from('project_clients')
+          .delete()
+          .eq('id', id);
+
+        if (deleteError) {
+          console.error(`Failed to delete duplicate with id ${id}:`, deleteError);
+        }
+      }
+
+      console.log(`✅ Cleanup complete - ${duplicatesToDelete.length} duplicates removed`);
+      return {
+        success: true,
+        message: `Removed ${duplicatesToDelete.length} duplicate project-client relationships`,
+        duplicatesRemoved: duplicatesToDelete.length,
+      };
+    } catch (error) {
+      console.error('Error cleaning up duplicates:', error);
+      return {
+        success: false,
+        message: `Error during cleanup: ${error}`,
+        duplicatesRemoved: 0,
+      };
+    }
+  },
+
+  /**
    * Export database to JSON (for backup)
    */
   async exportDatabase(): Promise<any | null> {
