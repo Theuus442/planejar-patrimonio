@@ -26,6 +26,7 @@ const CreateClientScreen: React.FC<CreateClientScreenProps> = ({ onBack, onCreat
     const [additionalClients, setAdditionalClients] = useState<NewClientData[]>([]);
     const [currentAdditional, setCurrentAdditional] = useState<NewClientData>({ name: '', email: '', clientType: 'interested', password: '' });
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isLoading, setIsLoading] = useState(false);
 
     const existingEmails = useMemo(() => new Set(allUsers.map(u => u.email.toLowerCase())), [allUsers]);
 
