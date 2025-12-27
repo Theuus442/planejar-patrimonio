@@ -640,25 +640,33 @@ export const projectClientsDB = {
   },
 
   async getProjectClients(projectId: string): Promise<User[]> {
-    const { data, error } = await getSupabase()
-      .from('project_clients')
-      .select('client_id')
-      .eq('project_id', projectId);
-    
-    if (error) {
-      console.error('Error fetching project clients:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
+    try {
+      const { data, error } = await getSupabase()
+        .from('project_clients')
+        .select('client_id')
+        .eq('project_id', projectId);
+
+      if (error) {
+        console.error('Error fetching project clients:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        });
+        return [];
+      }
+
+      const users = await Promise.all(
+        data.map(d => usersDB.getUser(d.client_id))
+      );
+
+      return users.filter((u): u is User => u !== null);
+    } catch (err: any) {
+      console.error('Unexpected error fetching project clients:', {
+        message: err?.message || String(err),
+        projectId,
       });
       return [];
     }
-    
-    const users = await Promise.all(
-      data.map(d => usersDB.getUser(d.client_id))
-    );
-    
-    return users.filter((u): u is User => u !== null);
   },
 };
 
