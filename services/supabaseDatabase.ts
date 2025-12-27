@@ -322,7 +322,10 @@ export const projectsDB = {
         return [];
       }
 
-      return Promise.all(data.map(p => mapDatabaseProjectToAppProject(p)));
+      console.log('DEBUG: Raw projects from DB:', data.map(p => ({ id: p.id, name: p.name })));
+      const projects = await Promise.all(data.map(p => mapDatabaseProjectToAppProject(p)));
+      console.log('DEBUG: Mapped projects:', projects.map(p => ({ id: p.id, name: p.name })));
+      return projects;
     } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error('Error listing projects:', {
