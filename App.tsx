@@ -486,22 +486,42 @@ const useStore = () => {
                 const allNewClientsData = [mainClientData, ...additionalClientsData];
                 const createdUserIds: string[] = [];
 
-                for (const clientData of allNewClientsData) {
+                for (let i = 0; i < allNewClientsData.length; i++) {
+                    const clientData = allNewClientsData[i];
+
                     if (!clientData.password) {
                         console.error('Password required for client:', clientData.email);
                         continue;
                     }
 
-                    const result = await supabaseAuthService.signUpWithEmail(
-                        clientData.email,
-                        clientData.password,
-                        clientData.name,
-                        UserRole.CLIENT,
-                        clientData.clientType
-                    );
+                    try {
+                        const result = await supabaseAuthService.signUpWithEmail(
+                            clientData.email,
+                            clientData.password,
+                            clientData.name,
+                            UserRole.CLIENT,
+                            clientData.clientType
+                        );
 
-                    if (result) {
-                        createdUserIds.push(result.user.id);
+                        if (result) {
+                            createdUserIds.push(result.user.id);
+                        }
+
+                        // Add delay between sign-ups to respect rate limiting (60 seconds)
+                        // Only wait if there are more users to create
+                        if (i < allNewClientsData.length - 1) {
+                            console.log('⏳ Aguardando antes do próximo sign-up (para evitar rate limiting)...');
+                            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+                        }
+                    } catch (signupError: any) {
+                        // If rate limited, show user-friendly message
+                        if (signupError?.message?.includes('security purposes')) {
+                            console.warn(`⚠️ Rate limiting ativado. Aguarde antes de tentar novamente.`, signupError.message);
+                            showToast('Muitas tentativas de criação. Aguarde 1 minuto e tente novamente.', 'warning', 5000);
+                            throw signupError;
+                        }
+                        console.error('Error creating user:', clientData.email, signupError);
+                        throw signupError;
                     }
                 }
 
