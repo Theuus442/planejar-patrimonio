@@ -15,6 +15,8 @@ interface ManageClientsModalProps {
 const ManageClientsModal: React.FC<ManageClientsModalProps> = ({ isOpen, onClose, project, onUpdateProject, allUsers, onAddUser }) => {
   const [newClient, setNewClient] = useState({ name: '', email: '', password: '', clientType: 'partner' as 'partner' | 'interested' });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRemoving, setIsRemoving] = useState<string | null>(null);
 
   const projectClients = useMemo(() => {
     return project.clientIds.map(id => allUsers.find(u => u.id === id)).filter((u): u is User => !!u);
