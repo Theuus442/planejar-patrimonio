@@ -608,6 +608,7 @@ const useStore = () => {
 const App = () => {
   const store = useStore();
   const [currentRoute, setCurrentRoute] = useState<string>('');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
     // Detect current route from URL pathname
