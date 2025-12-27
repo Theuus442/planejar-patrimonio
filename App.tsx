@@ -598,7 +598,7 @@ const useStore = () => {
         setSelectedProjectId, setNotifications, setActiveChat, setTargetPhaseId,
         setIsAiChatOpen, setAiChatMessages, setAiChatSession, setIsAiLoading, setIsRecoveryMode,
         isPartnerDataComplete, setProjects, setAllUsers, setIsSidebarOpen, reloadProjects,
-        showToast, closeToast
+        showToast, closeToast, connectionError, setConnectionError
     };
 };
 
