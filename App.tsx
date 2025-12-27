@@ -54,7 +54,6 @@ const useStore = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [currentToast, setCurrentToast] = useState<ToastMessage | null>(null);
-    const [connectionError, setConnectionError] = useState<string | null>(null);
 
     // ========================================================================
     // TOAST NOTIFICATIONS
