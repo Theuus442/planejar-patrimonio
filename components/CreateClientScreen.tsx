@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { NewClientData, User } from '../types';
 import Icon from './Icon';
+import LoadingSpinner from './LoadingSpinner';
 
 interface CreateClientScreenProps {
     onBack: () => void;
