@@ -85,18 +85,31 @@ const useStore = () => {
                 // To create test users, use the Supabase dashboard or create them manually
                 console.log('ℹ️ Ready to authenticate. Create users in Supabase dashboard to test.');
 
-                const user = await supabaseAuthService.getCurrentUser();
-                if (user) {
-                    setCurrentUser(user);
-                    try {
-                        await loadUserData(user.id);
-                    } catch (dataError) {
-                        console.error('Error loading user data:', dataError);
+                try {
+                    const user = await supabaseAuthService.getCurrentUser();
+                    if (user) {
+                        setCurrentUser(user);
+                        try {
+                            await loadUserData(user.id);
+                        } catch (dataError) {
+                            console.error('Error loading user data:', dataError);
+                            // Show toast error but continue with empty state
+                            showToast('Erro ao carregar dados do usuário. Tente recarregar a página.', 'error');
+                        }
+                    } else {
+                        setCurrentUser(null);
+                        setAllUsers([]);
+                        setProjects([]);
                     }
-                } else {
+                } catch (authError: any) {
+                    console.error('Auth error:', authError);
+                    const errorMessage = authError?.message || 'Erro ao conectar com o servidor';
+                    if (errorMessage.includes('Network Error') || errorMessage.includes('Failed to fetch')) {
+                        showToast('Erro de conectividade. Verifique sua conexão com a internet.', 'error');
+                    } else {
+                        showToast(errorMessage, 'error');
+                    }
                     setCurrentUser(null);
-                    setAllUsers([]);
-                    setProjects([]);
                 }
             } catch (error) {
                 console.error('Auth initialization error:', error);
