@@ -57,14 +57,19 @@ const ManageClientsModal: React.FC<ManageClientsModalProps> = ({ isOpen, onClose
     }
   };
 
-  const handleRemoveClient = (clientId: string) => {
+  const handleRemoveClient = async (clientId: string) => {
     if (project.clientIds.length <= 1) {
         alert("O projeto deve ter pelo menos um cliente.");
         return;
     }
     if (window.confirm("Tem certeza que deseja remover este cliente do projeto? O usuário não será deletado do sistema.")) {
-      const updatedClientIds = project.clientIds.filter(id => id !== clientId);
-      onUpdateProject(project.id, { clientIds: updatedClientIds });
+      setIsRemoving(clientId);
+      try {
+        const updatedClientIds = project.clientIds.filter(id => id !== clientId);
+        onUpdateProject(project.id, { clientIds: updatedClientIds });
+      } finally {
+        setIsRemoving(null);
+      }
     }
   };
 
