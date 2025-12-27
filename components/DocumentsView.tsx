@@ -30,6 +30,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ phases, onClose, onUpload }) 
     
     return (
       <>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
         <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} aria-hidden="true"></div>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <form onSubmit={handleSubmit} className="relative bg-white w-full max-w-lg rounded-lg shadow-xl flex flex-col max-h-[90vh]">
